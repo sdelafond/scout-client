@@ -156,6 +156,52 @@ module Scout
     end
     
     #
+    # Usage:
+    #
+    #   counter(:rkbps, stats['rsect'] / 2, :per => :second)
+    #   counter(:rpm, request_counter, :per => :minute)
+    #   counter(:swap_ins, vmstat['pswpin'], :per => :second, :round => true)
+    #
+    def counter(name, value, options = {}, &block)
+      current_time = Time.now
+
+      if data = memory("_counter_#{name}")
+        last_time, last_value = data[:time], data[:value]
+        elapsed_seconds       = current_time - last_time
+
+        # We won't log it if the value has wrapped or enough time hasn't
+        # elapsed
+        if value >= last_value && elapsed_seconds >= 1
+          if block
+            result = block.call(last_value, value)
+          else
+            result = value - last_value
+          end
+
+          case options[:per]
+          when :second, 'second'
+            result = result / elapsed_seconds.to_f
+          when :minute, 'minute'
+            result = result / elapsed_seconds.to_f / 60.0
+          else
+            raise "Unknown option for ':per': #{options[:per].inspect}"
+          end
+
+          if options[:round]
+            # Backward compatibility
+            options[:round] = 1 if options[:round] == true
+
+            result = (result * (10 ** options[:round])).round / (10 ** options[:round]).to_f
+          end
+
+          report(name => result)
+        end
+      end
+
+      remember("_counter_#{name}" => { :time => current_time, :value => value })
+    end
+
+    #
     # Old plugins will work because they override this method.  New plugins can
     # now leave this method in place, add a build_report() method instead, and
     # use the new helper methods to build up content inside which will
