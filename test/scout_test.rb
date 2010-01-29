@@ -12,13 +12,8 @@ require "logger"
 SCOUT_PATH = '../scout'
 SINATRA_PATH = '../scout_sinatra'
 
-# TODO
-# - provide directory for storing history / pid file ... put in test/scout_data ... ignore the contents
-# - only connect to ar once
-
 class ScoutTest < Test::Unit::TestCase
   def setup    
-    connect_ar
     load_fixtures :clients, :plugins, :accounts, :subscriptions
     clear_tables :plugin_activities, :ar_descriptors, :summaries
     # line below requires a number of dependencies...leaving off for now...
@@ -49,7 +44,7 @@ class ScoutTest < Test::Unit::TestCase
     assert_nil @client.last_ping
     
     # c = Scout::Command.dispatch([@client.key,"-s", "http://localhost:4567" ])
-    `bin/scout #{@client.key} -s http://localhost:4567`
+    scout(@client.key)
     assert_in_delta Time.now.utc.to_i, @client.reload.last_ping.to_i, 100
     assert_in_delta Time.now.utc.to_i, @client.reload.last_checkin.to_i, 100
   end
@@ -60,7 +55,7 @@ class ScoutTest < Test::Unit::TestCase
     
     prev_checkin = @client.reload.last_checkin
     sleep 2
-    `bin/scout #{@client.key} -s http://localhost:4567`
+    scout(@client.key)
     assert_equal prev_checkin, @client.reload.last_checkin
   end
   
@@ -70,7 +65,7 @@ class ScoutTest < Test::Unit::TestCase
     
     prev_checkin = @client.reload.last_checkin
     sleep 2
-    `bin/scout #{@client.key} -s http://localhost:4567 -F`
+    scout(@client.key,'-F')
     assert @client.reload.last_checkin > prev_checkin
   end
   
@@ -137,10 +132,16 @@ class ScoutTest < Test::Unit::TestCase
   ######################
   ### Helper Methods ###
   ######################
+  
+  # Runs the scout command with the given +key+
+  def scout(key, opts = String.new)
+    data_path = File.expand_path( File.dirname(__FILE__) )
+    data_file = data_path + '/history.yml'
+    `bin/scout #{key} -s http://localhost:4567 -d #{data_file} #{opts}`
+  end
 
   # Establishes AR connection
-  def connect_ar
-
+  def self.connect_ar
     # ActiveRecord configuration
     begin
       $LOAD_PATH << File.join(SCOUT_PATH,'app/models')
@@ -195,5 +196,5 @@ class ScoutTest < Test::Unit::TestCase
   end
 end
 
-
+ScoutTest::connect_ar
 
