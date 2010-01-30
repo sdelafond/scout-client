@@ -11,29 +11,24 @@ require "logger"
 
 SCOUT_PATH = '../scout'
 SINATRA_PATH = '../scout_sinatra'
+PATH_TO_DATA_FILE = File.expand_path( File.dirname(__FILE__) ) + '/history.yml'
 
 class ScoutTest < Test::Unit::TestCase
   def setup    
     load_fixtures :clients, :plugins, :accounts, :subscriptions
     clear_tables :plugin_activities, :ar_descriptors, :summaries
-    # line below requires a number of dependencies...leaving off for now...
-    # Plugin.all.each(&:reset_rrdb)
+    # delete the existing history file
+    File.unlink(PATH_TO_DATA_FILE) if File.exist?(PATH_TO_DATA_FILE)
     Client.update_all "last_checkin='#{5.days.ago.strftime('%Y-%m-%d %H:%M')}'"
     # ensures that fields are created
-    Plugin.update_all "converted_at = '#{5.days.ago.strftime('%Y-%m-%d %H:%M')}'"
+    # Plugin.update_all "converted_at = '#{5.days.ago.strftime('%Y-%m-%d %H:%M')}'"
+    # clear out RRD files
+    Dir.glob(SCOUT_PATH+'/test/rrdbs/db/*.rrd').each { |f| File.unlink(f) }
     @client=Client.find_by_key 'key', :include=>:plugins
     @plugin=@client.plugins.first
     # avoid client limit issues
     assert @client.account.subscription.update_attribute(:clients,100)
   end
-
-  # def teardown
-  # end
-
-  # def test_command_creation
-  #   c = Scout::Command::Test.new({},['test/plugins/disk_usage.rb'])
-  #   assert c.run
-  # end
   
   # Holding off...not sure how to pass thru inputs to STDIN
   def test_should_run_install
@@ -69,6 +64,7 @@ class ScoutTest < Test::Unit::TestCase
     assert @client.reload.last_checkin > prev_checkin
   end
   
+  # Does this matter? Don't think these are used during execution.
   def test_embedded_options_are_invalid
     
   end
@@ -89,20 +85,42 @@ class ScoutTest < Test::Unit::TestCase
     
   end
   
-  def test_should_get_plan_with_blank_history_file
-    
-  end
+  # As expected, this fails...Jesse's fork should fix this.
+  # def test_should_get_plan_with_blank_history_file
+  #   # Create a blank history file
+  #   File.open(PATH_TO_DATA_FILE, 'w+') {|f| f.write('') }
+  #   
+  #   scout(@client.key)
+  #   assert_in_delta Time.now.utc.to_i, @client.reload.last_ping.to_i, 100
+  #   assert_in_delta Time.now.utc.to_i, @client.reload.last_checkin.to_i, 100  
+  # end
   
+  # Can't think of a way to set a lower timeout on a plugin basis that works 
+  # for a test.
   def test_should_generate_error_on_plugin_timeout
     
   end
   
-  def test_should_generate_error
+  
+  def test_should_generate_alert
+    prev_alerts = Alert.count
     
+    load_average = Plugin.find(1)
+    load_average.code = "class MyPlugin < Scout::Plugin; def build_report; alert('yo'); end; end"
+    load_average.save
+    
+    scout(@client.key,'-F')
+    
+    assert_in_delta Time.now.utc.to_i, @client.reload.last_checkin.to_i, 100
+    assert_equal prev_alerts + 1, Alert.count
   end
   
   def test_should_generate_report
-    
+    prev_checkin = @client.reload.last_checkin
+    scout(@client.key,'-F')
+    assert_in_delta Time.now.utc.to_i, @client.reload.last_checkin.to_i, 100
+    load_average = Plugin.find(1)
+    assert_in_delta Time.now.utc.to_i, load_average.last_reported_at.to_i, 100
   end
   
   def test_should_generate_process_list
@@ -113,17 +131,13 @@ class ScoutTest < Test::Unit::TestCase
     
   end
 
-  # def test_dispatch
-  #   c = Scout::Command.dispatch([@client.key, "-s", "http://localhost:4567", "--verbose", ])
-  # end
+  def test_memory_should_be_stored
+    
+  end
 
   ####################
   ### Test-Related ###
   ####################
-  
-  def test_memory_should_be_stored
-    
-  end
   
   def test_embedded_options_are_read
     
@@ -133,11 +147,9 @@ class ScoutTest < Test::Unit::TestCase
   ### Helper Methods ###
   ######################
   
-  # Runs the scout command with the given +key+
+  # Runs the scout command with the given +key+ and +opts+ string (ex: '-F').
   def scout(key, opts = String.new)
-    data_path = File.expand_path( File.dirname(__FILE__) )
-    data_file = data_path + '/history.yml'
-    `bin/scout #{key} -s http://localhost:4567 -d #{data_file} #{opts}`
+    `bin/scout #{key} -s http://localhost:4567 -d #{PATH_TO_DATA_FILE} #{opts}`
   end
 
   # Establishes AR connection
@@ -196,5 +208,6 @@ class ScoutTest < Test::Unit::TestCase
   end
 end
 
+# Connect to AR before running
 ScoutTest::connect_ar
 
