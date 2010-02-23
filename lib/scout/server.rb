@@ -67,7 +67,7 @@ module Scout
     def fetch_plan
       url = urlify(:plan)
       info "Pinging server at #{url}..."
-      headers = Hash.new
+      headers = {"x_scout_tty" => ($stdin.tty? ? 'true' : 'false')}
       if @history["plan_last_modified"] and @history["old_plugins"]
         headers["If-Modified-Since"] = @history["plan_last_modified"]
       end
