@@ -18,6 +18,7 @@ require "logger"
 SCOUT_PATH = '../scout'
 SINATRA_PATH = '../scout_sinatra'
 PATH_TO_DATA_FILE = File.expand_path( File.dirname(__FILE__) ) + '/history.yml'
+PATH_TO_TEST_PLUGIN = File.expand_path( File.dirname(__FILE__) ) + '/my_plugin.rb'
 
 class ScoutTest < Test::Unit::TestCase
   def setup    
@@ -34,6 +35,7 @@ class ScoutTest < Test::Unit::TestCase
     @plugin=@client.plugins.first
     # avoid client limit issues
     assert @client.account.subscription.update_attribute(:clients,100)
+
   end
 
   def test_should_checkin_during_interactive_install
@@ -85,25 +87,37 @@ class ScoutTest < Test::Unit::TestCase
     assert @client.reload.last_checkin > prev_checkin
   end
 
-  # Needed to ensure that malformed embedded options don't bork the agent in test mode
-  def test_embedded_options_are_invalid
-    
-  end
-  
+  # The offedting plugin should generate an error, and should not keep other plugins in the plan from running
   def test_plugin_does_not_inherit_from_scout_plugin
-    
+    code=<<-EOC
+      class BadPlugin
+        def build_report
+          report(:answer=>42)
+        end
+      end
+    EOC
+    @plugin.code=code
+    @plugin.save
+    scout(@client.key)
+    @client.reload
+    assert_match /^Exception/, @client.plugins.first.plugin_errors.first.subject, "first plugin should have an error"
+    assert_in_delta Time.now.utc.to_i, @client.reload.last_checkin.to_i, 100
+    assert_in_delta Time.now.utc.to_i, @client.plugins.last.last_reported_at.to_i, 100, "the non-failing plugin should still run"
   end
-  
+
+  # indirect way of assessing reuse: examining log
   def test_reuse_existing_plan
-    
+    test_should_run_first_time
+
+    res=scout(@client.key, '-v')
+    assert_match "Plan not modified",res
   end
-  
+
+
   def test_should_retrieve_new_plan
-    
   end
   
   def test_should_checkin_even_if_history_file_not_writeable
-    
   end
 
   def test_should_get_plan_with_blank_history_file
@@ -155,11 +169,78 @@ class ScoutTest < Test::Unit::TestCase
   ####################
   ### Test-Related ###
   ####################
-  
-  def test_embedded_options_are_read
-    
+  def test_runs_in_test_mode
+    code=<<-EOC
+      class StarterPlugin < Scout::Plugin
+        def build_report
+          report(:answer=>42)
+        end
+      end
+    EOC
+
+    run_scout_test(code) do |res|
+      assert ":fields=>{:answer=>42}", res
+    end
   end
-  
+
+
+  def test_embedded_options_in_test_mode
+    code=<<-EOC
+      class StarterPlugin < Scout::Plugin
+        OPTIONS=<<-EOS
+          lunch:
+            label: Lunch Time
+            default: 12
+        EOS
+        def build_report
+          report(:lunch_is_at => option(:lunch))
+        end
+      end
+    EOC
+
+    run_scout_test(code) do |res|
+      assert_match ":fields=>{:lunch_is_at=>12}", res
+    end
+  end
+
+  def test_command_line_options_in_test_mode
+    code=<<-EOC
+      class StarterPlugin < Scout::Plugin
+        OPTIONS=<<-EOS
+          lunch:
+            label: Lunch Time
+            default: 12
+        EOS
+        def build_report
+          report(:lunch_is_at => option(:lunch))
+        end
+      end
+    EOC
+
+    run_scout_test(code, 'lunch=13') do |res|      
+      assert_match ':fields=>{:lunch_is_at=>"13"', res 
+    end
+  end
+
+  # Needed to ensure that malformed embedded options don't bork the agent in test mode
+  def test_invalid_embedded_options_in_test_mode
+    code=<<-EOC
+      class StarterPlugin < Scout::Plugin
+        OPTIONS=<<-EOS
+          invalid yaml, oh noes!
+        EOS
+
+        def build_report
+          report(:answer=>42)
+        end
+      end
+    EOC
+    run_scout_test(code) do |res|
+      assert_match "Problem parsing option definition in the plugin code (ignoring and continuing)", res
+      assert_match ":fields=>{:answer=>42}", res
+    end
+  end
+
   ######################
   ### Helper Methods ###
   ######################
@@ -168,6 +249,26 @@ class ScoutTest < Test::Unit::TestCase
   def scout(key, opts = String.new)
     `bin/scout #{key} -s http://localhost:4567 -d #{PATH_TO_DATA_FILE} #{opts}`
   end
+
+  # you can use this, but you have to create the plugin file and clean up afterwards.
+  # Or, you can use the blog version below
+  def scout_test(path_to_test_plugin, opts = String.new)
+    `bin/scout test #{path_to_test_plugin} -d #{PATH_TO_DATA_FILE} #{opts}`
+  end
+
+  # The prefered way to test the agent in test mode. This creates a plugin file with the code you provide,
+  # runs the agent in test mode, and cleans up the file.
+  def run_scout_test(code,opts=String.new)
+    File.open(PATH_TO_TEST_PLUGIN,"w") do |file|
+      file.write(code)
+    end
+
+    yield scout_test(PATH_TO_TEST_PLUGIN, opts)
+
+    ensure
+      File.unlink(PATH_TO_TEST_PLUGIN)
+  end
+
 
   # Establishes AR connection
   def self.connect_ar
