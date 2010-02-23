@@ -291,7 +291,7 @@ module Scout
     # it creates one.
     #
     def load_history
-      unless File.exist? @history_file
+      if !File.exist?(@history_file) || File.zero?(@history_file)
         create_blank_history
       end
       debug "Loading history file..."
