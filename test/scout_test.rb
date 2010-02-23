@@ -6,7 +6,8 @@
 $LOAD_PATH << File.expand_path( File.dirname(__FILE__) + '/../lib' )
 require 'test/unit'
 require 'lib/scout'
-
+require "pty"
+require "expect"
 
 require 'rubygems'
 require "active_record"
@@ -34,10 +35,26 @@ class ScoutTest < Test::Unit::TestCase
     # avoid client limit issues
     assert @client.account.subscription.update_attribute(:clients,100)
   end
-  
-  # Holding off...not sure how to pass thru inputs to STDIN
-  def test_should_run_install
 
+  def test_should_checkin_during_interactive_install
+    Client.update_all "last_checkin=null"
+    res=""
+    PTY.spawn("bin/scout -s http://localhost:4567 -d #{PATH_TO_DATA_FILE} install ") do | stdin, stdout, pid |
+      begin
+        stdin.expect("Enter the Server Key:", 3) do |response|
+          assert_not_nil response, "Agent didn't print prompt for server key"
+          stdout.puts @client.key # feed the agent the key
+          res=stdin.read.lstrip
+        end
+      rescue Errno::EIO
+        # don't care
+      end
+    end
+
+    assert res.match(/Attempting to contact the server.+Success!/m), "Output from interactive install session isn't right"
+
+    assert_in_delta Time.now.utc.to_i, @client.reload.last_ping.to_i, 100
+    assert_in_delta Time.now.utc.to_i, @client.reload.last_checkin.to_i, 100  
   end
   
   def test_should_run_first_time
@@ -67,7 +84,7 @@ class ScoutTest < Test::Unit::TestCase
     scout(@client.key,'-F')
     assert @client.reload.last_checkin > prev_checkin
   end
-  
+
   # Needed to ensure that malformed embedded options don't bork the agent in test mode
   def test_embedded_options_are_invalid
     
@@ -98,9 +115,7 @@ class ScoutTest < Test::Unit::TestCase
    assert_in_delta Time.now.utc.to_i, @client.reload.last_checkin.to_i, 100
   end
   
-  # TODO: Can't think of a way to set a lower timeout on a plugin basis that works for a test.
   def test_should_generate_error_on_plugin_timeout
-    
   end
   
   

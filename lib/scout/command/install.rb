@@ -22,7 +22,10 @@ module Scout
 
         puts "\nAttempting to contact the server..."
         begin
-          Scout::Server.new(server, key, history, log) { |scout| scout.fetch_plan }
+          Scout::Server.new(server, key, history, log) do |scout|
+            scout.fetch_plan
+            scout.run_plugins_by_plan
+          end
 
           puts <<-END_SUCCESS.gsub(/^ {10}/, "")
           Success!
