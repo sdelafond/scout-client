@@ -218,7 +218,7 @@ module Scout
         if running
           if pid == "unknown"
             log.warn "Could not create or read PID file.  "                +
-                     "You may need to the path to the config directory.  " +
+                     "You may need to specify the path to the config directory.  " +
                      "See:  http://scoutapp.com/help#data_file" if log
           else
             log.warn "Process #{pid} was already running" if log
