@@ -1,10 +1,15 @@
+# These are integration tests -- they require a local instance of the Scout server to run.
+# If you only have the Scout Agent gem, these tests will not run successfully.
+#
+# Scout internal note: See documentation in scout_sinatra for running tests.
+#
 $LOAD_PATH << File.expand_path( File.dirname(__FILE__) + '/../lib' )
 require 'test/unit'
 require 'lib/scout'
 
 
 require 'rubygems'
-require "active_record"  # the order seems to be very touchy -- needs to be after sinatra and before json
+require "active_record"
 require "json"          # the data format
 require "erb"           # only for loading rails DB config for now
 require "logger"
@@ -37,8 +42,7 @@ class ScoutTest < Test::Unit::TestCase
   
   def test_should_run_first_time
     assert_nil @client.last_ping
-    
-    # c = Scout::Command.dispatch([@client.key,"-s", "http://localhost:4567" ])
+
     scout(@client.key)
     assert_in_delta Time.now.utc.to_i, @client.reload.last_ping.to_i, 100
     assert_in_delta Time.now.utc.to_i, @client.reload.last_checkin.to_i, 100
@@ -64,7 +68,7 @@ class ScoutTest < Test::Unit::TestCase
     assert @client.reload.last_checkin > prev_checkin
   end
   
-  # Does this matter? Don't think these are used during execution.
+  # Needed to ensure that malformed embedded options don't bork the agent in test mode
   def test_embedded_options_are_invalid
     
   end
@@ -84,19 +88,17 @@ class ScoutTest < Test::Unit::TestCase
   def test_should_checkin_even_if_history_file_not_writeable
     
   end
+
+  def test_should_get_plan_with_blank_history_file
+   # Create a blank history file
+   File.open(PATH_TO_DATA_FILE, 'w+') {|f| f.write('') }
+
+   scout(@client.key)
+   assert_in_delta Time.now.utc.to_i, @client.reload.last_ping.to_i, 100
+   assert_in_delta Time.now.utc.to_i, @client.reload.last_checkin.to_i, 100
+  end
   
-  # As expected, this fails...Jesse's fork should fix this.
-  # def test_should_get_plan_with_blank_history_file
-  #   # Create a blank history file
-  #   File.open(PATH_TO_DATA_FILE, 'w+') {|f| f.write('') }
-  #   
-  #   scout(@client.key)
-  #   assert_in_delta Time.now.utc.to_i, @client.reload.last_ping.to_i, 100
-  #   assert_in_delta Time.now.utc.to_i, @client.reload.last_checkin.to_i, 100  
-  # end
-  
-  # Can't think of a way to set a lower timeout on a plugin basis that works 
-  # for a test.
+  # TODO: Can't think of a way to set a lower timeout on a plugin basis that works for a test.
   def test_should_generate_error_on_plugin_timeout
     
   end
