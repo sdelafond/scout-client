@@ -1,3 +1,9 @@
+== 5.1.0
+
+* Agent now reports data on initial install
+* If history file is empty, Agent will resume normal checkin when it can write history file again (thx @jnewland)
+* inclusion of counter functionality (thx @lindvall)
+
 == 5.0.3
 
 * fixed regression: Error when running `scout AGENT_KEY` without first running scout and manually entering the agent key 
