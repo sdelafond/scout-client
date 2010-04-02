@@ -1,3 +1,7 @@
+== 5.1.1
+
+* Fixed Counter functionality for per-minute metrics
+
 == 5.1.0
 
 * Agent now reports data on initial install
