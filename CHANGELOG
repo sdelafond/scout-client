@@ -1,3 +1,7 @@
+== 5.1.2
+
+* Added backtrace to Plugin code compile errors
+
 == 5.1.1
 
 * Fixed Counter functionality for per-minute metrics
