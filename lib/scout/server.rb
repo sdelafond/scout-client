@@ -189,7 +189,7 @@ module Scout
         rescue Exception
           raise if $!.is_a? SystemExit
           error "Plugin would not compile: #{$!.message}"
-          @checkin[:errors] << build_report(plugin['id'],:subject => "Plugin would not compile", :body=>$!.message)
+          @checkin[:errors] << build_report(plugin['id'],:subject => "Plugin would not compile", :body=>"#{$!.message}\n\n#{$!.backtrace}")
           return
         end
         debug "Loading plugin..."
