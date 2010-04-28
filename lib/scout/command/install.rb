@@ -22,7 +22,7 @@ module Scout
 
         puts "\nAttempting to contact the server..."
         begin
-          Scout::Server.new(server, key, history, log) do |scout|
+          Scout::Server.new(server, key, history, log, gzip) do |scout|
             scout.fetch_plan
             scout.run_plugins_by_plan
           end

@@ -39,12 +39,13 @@ module Scout
     attr_reader :directives
 
     # Creates a new Scout Server connection.
-    def initialize(server, client_key, history_file, logger = nil)
+    def initialize(server, client_key, history_file, logger = nil, gzip = true)
       @server       = server
       @client_key   = client_key
       @history_file = history_file
       @history      = Hash.new
       @logger       = logger
+      @gzip         = gzip
       @plugin_plan  = []
       @directives   = {} # take_snapshots
       @new_plan     = false
@@ -383,15 +384,26 @@ module Scout
     
     def checkin
       @history['last_checkin'] = Time.now.to_i # might have to save the time of invocation and use here to prevent drift
-      io   =  StringIO.new
-      gzip =  Zlib::GzipWriter.new(io)
-      gzip << @checkin.to_json
-      gzip.close
-      post( urlify(:checkin),
-            "Unable to check in with the server.",
-            io.string,
-            "Content-Type"     => "application/json",
-            "CONTENT_ENCODING" => "gzip" )
+
+      if @gzip
+        io   =  StringIO.new
+        gzip =  Zlib::GzipWriter.new(io)
+        gzip << @checkin.to_json
+        gzip.close
+
+        post( urlify(:checkin),
+              "Unable to check in with the server.",
+              io.string,
+              "Content-Type"     => "application/json",
+              "CONTENT_ENCODING" => "gzip" )
+      else
+        post( urlify(:checkin),
+              "Unable to check in with the server.",
+              @checkin.to_json,
+              "Content-Type"     => "application/json")
+      end
+    rescue Exception #TODO: catch specific exception for GZIP Issue
+      error "There was a problem using GZip. Try running scout with the --no-gzip option."
     rescue Exception
       error "Unable to check in with the server."
     end

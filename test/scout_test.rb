@@ -153,7 +153,15 @@ class ScoutTest < Test::Unit::TestCase
     load_average = Plugin.find(1)
     assert_in_delta Time.now.utc.to_i, load_average.last_reported_at.to_i, 100
   end
-  
+
+  def test_should_work_with_gzip_disabled
+    prev_checkin = @client.reload.last_checkin
+    puts scout(@client.key,'-F --no-gzip')
+    assert_in_delta Time.now.utc.to_i, @client.reload.last_checkin.to_i, 100
+    load_average = Plugin.find(1)
+    assert_in_delta Time.now.utc.to_i, load_average.last_reported_at.to_i, 100
+  end
+
   def test_should_generate_process_list
     
   end

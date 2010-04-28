@@ -63,6 +63,11 @@ module Scout
           options[:level] = level
         end
 
+        opts.on( "-z","--[no-]gzip",
+                 "By default, Scout GZips reports. Disable GZipping only if regular usage generates a GZip error." ) do |bool|
+          options[:gzip] = bool
+        end
+
         opts.separator " "
         opts.separator "Common Options:"
         opts.separator "--------------------------------------------------------------------------"
@@ -134,11 +139,11 @@ module Scout
       @verbose = options[:verbose] || false
       @level   = options[:level]   || "info"
       @force   = options[:force]   || false
-
+      @gzip    = options[:gzip].nil? ? true : options[:gzip] # defaults to true if not provided
       @args    = args
     end
 
-    attr_reader :server, :history
+    attr_reader :server, :history, :gzip
 
     def config_dir
       return @config_dir if defined? @config_dir

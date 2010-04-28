@@ -9,7 +9,7 @@ module Scout
         configuration_directory = config_dir
         log.debug("Configuration directory is #{configuration_directory} ") if log
         # TODO: too much external logic of command doing things TO server. This should be moved into the server class.
-        @scout = Scout::Server.new(server, key, history, log)
+        @scout = Scout::Server.new(server, key, history, log, gzip)
         @scout.load_history
         @scout.fetch_plan
 
