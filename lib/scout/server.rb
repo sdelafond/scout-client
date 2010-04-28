@@ -394,6 +394,9 @@ module Scout
             "CONTENT_ENCODING" => "gzip" )
     rescue Exception
       error "Unable to check in with the server."
+      debug $!.class.to_s
+      debug $!.message
+      debug $!.backtrace
     end
     
     
