@@ -21,7 +21,7 @@ module Scout
     # Headers passed up with all API requests.
     HTTP_HEADERS = { "CLIENT_VERSION"  => Scout::VERSION,
                      "CLIENT_HOSTNAME" => Socket.gethostname,
-                     "ACCEPT_ENCODING" => "gzip" }
+                     "Accept-Encoding" => "gzip" }
     
     # 
     # A plugin cannot take more than DEFAULT_PLUGIN_TIMEOUT seconds to execute, 
@@ -391,7 +391,7 @@ module Scout
             "Unable to check in with the server.",
             io.string,
             "Content-Type"     => "application/json",
-            "CONTENT_ENCODING" => "gzip" )
+            "Content-Encoding" => "gzip" )
     rescue Exception
       error "Unable to check in with the server."
     end
