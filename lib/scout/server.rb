@@ -19,8 +19,8 @@ module Scout
     class APITimeoutError < RuntimeError; end
     
     # Headers passed up with all API requests.
-    HTTP_HEADERS = { "CLIENT_VERSION"  => Scout::VERSION,
-                     "CLIENT_HOSTNAME" => Socket.gethostname,
+    HTTP_HEADERS = { "Client-Version"  => Scout::VERSION,
+                     "Client-Hostname" => Socket.gethostname,
                      "Accept-Encoding" => "gzip" }
     
     # 
@@ -67,7 +67,7 @@ module Scout
     def fetch_plan
       url = urlify(:plan)
       info "Pinging server at #{url}..."
-      headers = {"x_scout_tty" => ($stdin.tty? ? 'true' : 'false')}
+      headers = {"x-scout-tty" => ($stdin.tty? ? 'true' : 'false')}
       if @history["plan_last_modified"] and @history["old_plugins"]
         headers["If-Modified-Since"] = @history["plan_last_modified"]
       end

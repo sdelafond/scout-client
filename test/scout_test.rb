@@ -87,7 +87,7 @@ class ScoutTest < Test::Unit::TestCase
     assert @client.reload.last_checkin > prev_checkin
   end
 
-  # The offedting plugin should generate an error, and should not keep other plugins in the plan from running
+  # The offeding plugin should generate an error, and should not keep other plugins in the plan from running
   def test_plugin_does_not_inherit_from_scout_plugin
     code=<<-EOC
       class BadPlugin
@@ -164,6 +164,19 @@ class ScoutTest < Test::Unit::TestCase
 
   def test_memory_should_be_stored
     
+  end
+
+  def test_client_version_is_set
+    assert_nil @client.last_ping
+    @client.update_attribute(:version,nil)
+    scout(@client.key)
+    assert_equal Scout::VERSION, @client.reload.version
+  end
+
+  def test_client_hostname_is_set
+    assert_nil @client.hostname
+    scout(@client.key)
+    assert_equal `hostname`.chomp, @client.reload.hostname
   end
 
   ####################
