@@ -23,13 +23,11 @@ else
   require 'json/pure'
 end
 
-module ParserBenchmarkCommon
+module Parser2BenchmarkCommon
   include JSON
 
   def setup
-    a = [ nil, false, true, "fÖß\nÄr", [ "n€st€d", true ], { "fooß" => "bär", "qu\r\nux" => true } ]
-    @big = a * 100
-    @json = JSON.generate(@big)
+    @big = @json = File.read(File.join(File.dirname(__FILE__), 'ohai.json'))
   end
 
   def generic_reset_method
@@ -37,8 +35,8 @@ module ParserBenchmarkCommon
   end
 end
 
-class ParserBenchmarkExt < Bullshit::RepeatCase
-  include ParserBenchmarkCommon
+class Parser2BenchmarkExt < Bullshit::RepeatCase
+  include Parser2BenchmarkCommon
 
   warmup      yes
   iterations  2000
@@ -74,8 +72,8 @@ class ParserBenchmarkExt < Bullshit::RepeatCase
   alias reset_parser_symbolc generic_reset_method
 end
 
-class ParserBenchmarkPure < Bullshit::RepeatCase
-  include ParserBenchmarkCommon
+class Parser2BenchmarkPure < Bullshit::RepeatCase
+  include Parser2BenchmarkCommon
 
   warmup      yes
   iterations  400
@@ -111,7 +109,7 @@ class ParserBenchmarkPure < Bullshit::RepeatCase
   alias reset_parser_symbolc generic_reset_method
 end
 
-class ParserBenchmarkYAML < Bullshit::RepeatCase
+class Parser2BenchmarkYAML < Bullshit::RepeatCase
   warmup      yes
   iterations  400
 
@@ -134,9 +132,7 @@ class ParserBenchmarkYAML < Bullshit::RepeatCase
   histogram yes
 
   def setup
-    a = [ nil, false, true, "fÖß\nÄr", [ "n€st€d", true ], { "fooß" => "bär", "qu\r\nux" => true } ]
-    @big = a * 100
-    @json = JSON.pretty_generate(@big)
+    @big = @json = File.read(File.join(File.dirname(__FILE__), 'ohai.json'))
   end
 
   def benchmark_parser
@@ -148,12 +144,11 @@ class ParserBenchmarkYAML < Bullshit::RepeatCase
   end
 end
 
-class ParserBenchmarkRails < Bullshit::RepeatCase
+class Parser2BenchmarkRails < Bullshit::RepeatCase
   warmup      yes
   iterations  400
 
   truncate_data do
-    enabled false
     alpha_level 0.05
     window_size 50
     slope_angle 0.1
@@ -185,12 +180,11 @@ class ParserBenchmarkRails < Bullshit::RepeatCase
   end
 end
 
-class ParserBenchmarkYajl < Bullshit::RepeatCase
+class Parser2BenchmarkYajl < Bullshit::RepeatCase
   warmup      yes
   iterations  2000
 
   truncate_data do
-    enabled false
     alpha_level 0.05
     window_size 50
     slope_angle 0.1
@@ -208,9 +202,7 @@ class ParserBenchmarkYajl < Bullshit::RepeatCase
   histogram yes
 
   def setup
-    a = [ nil, false, true, "fÖß\nÄr", [ "n€st€d", true ], { "fooß" => "bär", "qu\r\nux" => true } ]
-    @big = a * 100
-    @json = JSON.generate(@big)
+    @big = @json = File.read(File.join(File.dirname(__FILE__), 'ohai.json'))
   end
 
   def benchmark_parser
@@ -227,15 +219,15 @@ if $0 == __FILE__
 
   case ARGV.first
   when 'ext'
-    ParserBenchmarkExt.run
+    Parser2BenchmarkExt.run
   when 'pure'
-    ParserBenchmarkPure.run
+    Parser2BenchmarkPure.run
   when 'yaml'
-    ParserBenchmarkYAML.run
+    Parser2BenchmarkYAML.run
   when 'rails'
-    ParserBenchmarkRails.run
+    Parser2BenchmarkRails.run
   when 'yajl'
-    ParserBenchmarkYajl.run
+    Parser2BenchmarkYajl.run
   else
     system "#{RAKE_PATH} clean"
     system "#{RUBY_PATH} #$0 yaml"
@@ -245,15 +237,15 @@ if $0 == __FILE__
     system "#{RUBY_PATH} #$0 ext"
     system "#{RUBY_PATH} #$0 yajl"
     Bullshit.compare do
-      output_filename File.join(File.dirname(__FILE__), 'data', 'ParserBenchmarkComparison.log')
+      output_filename File.join(File.dirname(__FILE__), 'data', 'Parser2BenchmarkComparison.log')
 
-      benchmark ParserBenchmarkExt,   :parser, :load => yes
-      benchmark ParserBenchmarkExt,   :parser_symbolic, :load => yes
-      benchmark ParserBenchmarkPure,  :parser, :load => yes
-      benchmark ParserBenchmarkPure,  :parser_symbolic, :load => yes
-      benchmark ParserBenchmarkYAML,  :parser, :load => yes
-      benchmark ParserBenchmarkRails, :parser, :load => yes
-      benchmark ParserBenchmarkYajl,  :parser, :load => yes
+      benchmark Parser2BenchmarkExt,   :parser, :load => yes
+      benchmark Parser2BenchmarkExt,   :parser_symbolic, :load => yes
+      benchmark Parser2BenchmarkPure,  :parser, :load => yes
+      benchmark Parser2BenchmarkPure,  :parser_symbolic, :load => yes
+      benchmark Parser2BenchmarkYAML,  :parser, :load => yes
+      benchmark Parser2BenchmarkRails, :parser, :load => yes
+      benchmark Parser2BenchmarkYajl,  :parser, :load => yes
     end
   end
 end

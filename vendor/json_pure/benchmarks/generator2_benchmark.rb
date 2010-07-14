@@ -22,22 +22,20 @@ module JSON
   def self.[](*) end
 end
 
-module GeneratorBenchmarkCommon
+module Generator2BenchmarkCommon
   include JSON
 
   def setup
-    a = [ nil, false, true, "fÖßÄr", [ "n€st€d", true ], { "fooß" => "bär", "quux" => true } ]
-    puts a.to_json if a.respond_to?(:to_json)
-    @big = a * 100
+    @big = eval File.read(File.join(File.dirname(__FILE__), 'ohai.ruby'))
   end
 
   def generic_reset_method
-    @result and @result.size > 2 + 6 * @big.size or raise @result.to_s
+    @result and @result.size >= 16 or raise @result.to_s
   end
 end
 
 module JSONGeneratorCommon
-  include GeneratorBenchmarkCommon
+  include Generator2BenchmarkCommon
 
   def benchmark_generator_fast
     @result = JSON.fast_generate(@big)
@@ -64,7 +62,7 @@ module JSONGeneratorCommon
   alias reset_benchmark_generator_ascii generic_reset_method
 end
 
-class GeneratorBenchmarkExt < Bullshit::RepeatCase
+class Generator2BenchmarkExt < Bullshit::RepeatCase
   include JSONGeneratorCommon
 
   warmup      yes
@@ -90,7 +88,7 @@ class GeneratorBenchmarkExt < Bullshit::RepeatCase
   histogram yes
 end
 
-class GeneratorBenchmarkPure < Bullshit::RepeatCase
+class Generator2BenchmarkPure < Bullshit::RepeatCase
   include JSONGeneratorCommon
 
   warmup      yes
@@ -115,8 +113,8 @@ class GeneratorBenchmarkPure < Bullshit::RepeatCase
   histogram yes
 end
 
-class GeneratorBenchmarkRails < Bullshit::RepeatCase
-  include GeneratorBenchmarkCommon
+class Generator2BenchmarkRails < Bullshit::RepeatCase
+  include Generator2BenchmarkCommon
 
   warmup      yes
   iterations  400
@@ -146,8 +144,8 @@ class GeneratorBenchmarkRails < Bullshit::RepeatCase
   alias reset_benchmark_generator generic_reset_method
 end
 
-class GeneratorBenchmarkYajl < Bullshit::RepeatCase
-  include GeneratorBenchmarkCommon
+class Generator2BenchmarkYajl < Bullshit::RepeatCase
+  include Generator2BenchmarkCommon
 
   warmup      yes
   iterations  2000
@@ -190,13 +188,13 @@ if $0 == __FILE__
 
   case ARGV.first
   when 'ext'
-    GeneratorBenchmarkExt.run
+    Generator2BenchmarkExt.run
   when 'pure'
-    GeneratorBenchmarkPure.run
+    Generator2BenchmarkPure.run
   when 'rails'
-    GeneratorBenchmarkRails.run
+    Generator2BenchmarkRails.run
   when 'yajl'
-    GeneratorBenchmarkYajl.run
+    Generator2BenchmarkYajl.run
   else
     system "#{RAKE_PATH} clean"
     system "#{RUBY_PATH} #$0 rails"
@@ -205,19 +203,19 @@ if $0 == __FILE__
     system "#{RUBY_PATH} #$0 ext"
     system "#{RUBY_PATH} #$0 yajl"
     Bullshit.compare do
-      output_filename File.join(File.dirname(__FILE__), 'data', 'GeneratorBenchmarkComparison.log')
+      output_filename File.join(File.dirname(__FILE__), 'data', 'Generator2BenchmarkComparison.log')
 
-      benchmark GeneratorBenchmarkExt,    :generator_fast,    :load => yes
-      benchmark GeneratorBenchmarkExt,    :generator_safe,    :load => yes
-      benchmark GeneratorBenchmarkExt,    :generator_pretty,  :load => yes
-      benchmark GeneratorBenchmarkExt,    :generator_ascii,    :load => yes
-      benchmark GeneratorBenchmarkPure,   :generator_fast,    :load => yes
-      benchmark GeneratorBenchmarkPure,   :generator_safe,    :load => yes
-      benchmark GeneratorBenchmarkPure,   :generator_pretty,  :load => yes
-      benchmark GeneratorBenchmarkPure,   :generator_ascii,   :load => yes
-      benchmark GeneratorBenchmarkRails,  :generator,         :load => yes
-      benchmark GeneratorBenchmarkYajl,   :generator,         :load => yes
-      benchmark GeneratorBenchmarkYajl,   :generator_gem_api, :load => yes
+      benchmark Generator2BenchmarkExt,    :generator_fast,    :load => yes
+      benchmark Generator2BenchmarkExt,    :generator_safe,    :load => yes
+      benchmark Generator2BenchmarkExt,    :generator_pretty,  :load => yes
+      benchmark Generator2BenchmarkExt,    :generator_ascii,   :load => yes
+      benchmark Generator2BenchmarkPure,   :generator_fast,    :load => yes
+      benchmark Generator2BenchmarkPure,   :generator_safe,    :load => yes
+      benchmark Generator2BenchmarkPure,   :generator_pretty,  :load => yes
+      benchmark Generator2BenchmarkPure,   :generator_ascii,   :load => yes
+      benchmark Generator2BenchmarkRails,  :generator,         :load => yes
+      benchmark Generator2BenchmarkYajl,   :generator,         :load => yes
+      benchmark Generator2BenchmarkYajl,   :generator_gem_api, :load => yes
     end
   end
 end

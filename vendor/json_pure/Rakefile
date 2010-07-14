@@ -1,34 +1,53 @@
 begin
   require 'rake/gempackagetask'
-  require 'rake/extensiontask'
 rescue LoadError
 end
-require 'rake/clean'
+
+begin
+  require 'rake/extensiontask'
+rescue LoadError
+  puts "WARNING: rake-compiler is not installed. You will not be able to build the json gem until you install it."
+end
 
 require 'rbconfig'
 include Config
 
-PKG_NAME          = 'json'
-PKG_VERSION       = File.read('VERSION').chomp
-PKG_FILES         = FileList["**/*"].exclude(/CVS|pkg|tmp|coverage|Makefile/).exclude(/\.(so|bundle|o|#{CONFIG['DLEXT']})$/)
-EXT_ROOT_DIR      = 'ext/json/ext'
-EXT_PARSER_DIR    = "#{EXT_ROOT_DIR}/parser"
-EXT_PARSER_DL     = "#{EXT_ROOT_DIR}/parser.#{CONFIG['DLEXT']}"
-EXT_PARSER_SRC    = "#{EXT_PARSER_DIR}/parser.c"
-PKG_FILES << EXT_PARSER_SRC
-EXT_GENERATOR_DIR = "#{EXT_ROOT_DIR}/generator"
-EXT_GENERATOR_DL  = "#{EXT_ROOT_DIR}/generator.#{CONFIG['DLEXT']}"
-EXT_GENERATOR_SRC = "#{EXT_GENERATOR_DIR}/generator.c"
-RAGEL_CODEGEN     = %w[rlcodegen rlgen-cd ragel].find { |c| system(c, '-v') }
-RAGEL_DOTGEN      = %w[rlgen-dot rlgen-cd ragel].find { |c| system(c, '-v') }
-RAGEL_PATH        = "#{EXT_PARSER_DIR}/parser.rl"
+require 'rake/clean'
+CLOBBER.include Dir['benchmarks/data/*.{dat,log}'], FileList['**/*.rbc']
 CLEAN.include FileList['diagrams/*.*'], 'doc', 'coverage', 'tmp',
   FileList["ext/**/{Makefile,mkmf.log}"],
   FileList["{ext,lib}/**/*.{so,bundle,#{CONFIG['DLEXT']},o,obj,pdb,lib,manifest,exp,def}"]
 
+MAKE = ENV['MAKE'] || %w[gmake make].find { |c| system(c, '-v') }
+PKG_NAME          = 'json'
+PKG_TITLE         = 'JSON Implementation for Ruby'
+PKG_VERSION       = File.read('VERSION').chomp
+PKG_FILES         = FileList["**/*"].exclude(/CVS|pkg|tmp|coverage|Makefile|\.nfs\./).exclude(/\.(so|bundle|o|#{CONFIG['DLEXT']})$/)
+EXT_ROOT_DIR      = 'ext/json/ext'
+EXT_PARSER_DIR    = "#{EXT_ROOT_DIR}/parser"
+EXT_PARSER_DL     = "#{EXT_PARSER_DIR}/parser.#{CONFIG['DLEXT']}"
+EXT_PARSER_SRC    = "#{EXT_PARSER_DIR}/parser.c"
+PKG_FILES << EXT_PARSER_SRC
+EXT_GENERATOR_DIR = "#{EXT_ROOT_DIR}/generator"
+EXT_GENERATOR_DL  = "#{EXT_GENERATOR_DIR}/generator.#{CONFIG['DLEXT']}"
+EXT_GENERATOR_SRC = "#{EXT_GENERATOR_DIR}/generator.c"
+RAGEL_CODEGEN     = %w[rlcodegen rlgen-cd ragel].find { |c| system(c, '-v') }
+RAGEL_DOTGEN      = %w[rlgen-dot rlgen-cd ragel].find { |c| system(c, '-v') }
+RAGEL_PATH        = "#{EXT_PARSER_DIR}/parser.rl"
+
+def myruby(*args, &block)
+  @myruby ||= File.join(CONFIG['bindir'], CONFIG['ruby_install_name'])
+  options = (Hash === args.last) ? args.pop : {}
+  if args.length > 1 then
+    sh(*([@myruby] + args + [options]), &block)
+  else
+    sh("#{@myruby} #{args.first}", options, &block)
+  end
+end
+
 desc "Installing library (pure)"
 task :install_pure => :version do
-  ruby 'install.rb'
+  myruby 'install.rb'
 end
 
 task :install_ext_really do
@@ -46,23 +65,27 @@ desc "Installing library (extension)"
 task :install_ext => [ :compile_ext, :install_pure, :install_ext_really ]
 
 desc "Installing library (extension)"
-task :install => :install_ext
+if RUBY_PLATFORM =~ /java/
+  task :install => :install_pure
+else
+  task :install => :install_ext
+end
 
 desc "Compiling extension"
 task :compile_ext => [ EXT_PARSER_DL, EXT_GENERATOR_DL ]
 
 file EXT_PARSER_DL => EXT_PARSER_SRC do
   cd EXT_PARSER_DIR do
-    ruby 'extconf.rb'
-    system 'make'
+    myruby 'extconf.rb'
+    sh MAKE
   end
   cp "#{EXT_PARSER_DIR}/parser.#{CONFIG['DLEXT']}", EXT_ROOT_DIR
 end
 
 file EXT_GENERATOR_DL => EXT_GENERATOR_SRC do
   cd EXT_GENERATOR_DIR do
-    ruby 'extconf.rb'
-    system 'make'
+    myruby 'extconf.rb'
+    sh MAKE
   end
   cp "#{EXT_GENERATOR_DIR}/generator.#{CONFIG['DLEXT']}", EXT_ROOT_DIR
 end
@@ -77,9 +100,9 @@ end
 file EXT_PARSER_SRC => RAGEL_PATH do
   cd EXT_PARSER_DIR do
     if RAGEL_CODEGEN == 'ragel'
-      system "ragel parser.rl -G2 -o parser.c"
+      sh "ragel parser.rl -G2 -o parser.c"
     else
-      system "ragel -x parser.rl | #{RAGEL_CODEGEN} -G2"
+      sh "ragel -x parser.rl | #{RAGEL_CODEGEN} -G2"
     end
   end
 end
@@ -89,11 +112,11 @@ task :ragel_dot_ps do
   root = 'diagrams'
   specs = []
   File.new(RAGEL_PATH).grep(/^\s*machine\s*(\S+);\s*$/) { specs << $1 }
-  for s in specs 
+  for s in specs
     if RAGEL_DOTGEN == 'ragel'
-      system "ragel #{RAGEL_PATH} -S#{s} -p -V | dot -Tps -o#{root}/#{s}.ps"
+      sh "ragel #{RAGEL_PATH} -S#{s} -p -V | dot -Tps -o#{root}/#{s}.ps"
     else
-      system "ragel -x #{RAGEL_PATH} -S#{s} | #{RAGEL_DOTGEN} -p|dot -Tps -o#{root}/#{s}.ps"
+      sh "ragel -x #{RAGEL_PATH} -S#{s} | #{RAGEL_DOTGEN} -p|dot -Tps -o#{root}/#{s}.ps"
     end
   end
 end
@@ -103,11 +126,11 @@ task :ragel_dot_png do
   root = 'diagrams'
   specs = []
   File.new(RAGEL_PATH).grep(/^\s*machine\s*(\S+);\s*$/) { specs << $1 }
-  for s in specs 
+  for s in specs
     if RAGEL_DOTGEN == 'ragel'
-      system "ragel #{RAGEL_PATH} -S#{s} -p -V | dot -Tpng -o#{root}/#{s}.png"
+      sh "ragel #{RAGEL_PATH} -S#{s} -p -V | dot -Tpng -o#{root}/#{s}.png"
     else
-      system "ragel -x #{RAGEL_PATH} -S#{s} | #{RAGEL_DOTGEN} -p|dot -Tpng -o#{root}/#{s}.png"
+      sh "ragel -x #{RAGEL_PATH} -S#{s} | #{RAGEL_DOTGEN} -p|dot -Tpng -o#{root}/#{s}.png"
     end
   end
 end
@@ -119,14 +142,14 @@ desc "Testing library (pure ruby)"
 task :test_pure => :clean do
   ENV['JSON'] = 'pure'
   ENV['RUBYOPT'] = "-Iext:lib #{ENV['RUBYOPT']}"
-  system "testrb #{Dir['tests/*.rb'] * ' '}"
+  myruby "-S testrb #{Dir['./tests/*.rb'] * ' '}"
 end
 
 desc "Testing library (extension)"
 task :test_ext => :compile_ext do
   ENV['JSON'] = 'ext'
   ENV['RUBYOPT'] = "-Iext:lib #{ENV['RUBYOPT']}"
-  system "testrb #{Dir['tests/*.rb'] * ' '}"
+  myruby "-S testrb #{Dir['./tests/*.rb'] * ' '}"
 end
 
 desc "Testing library (pure ruby and extension)"
@@ -135,33 +158,30 @@ task :test => [ :test_pure, :test_ext ]
 desc "Benchmarking parser"
 task :benchmark_parser do
   ENV['RUBYOPT'] = "-Ilib:ext #{ENV['RUBYOPT']}"
-  ruby 'benchmarks/parser_benchmark.rb'
+  myruby 'benchmarks/parser_benchmark.rb'
+  myruby 'benchmarks/parser2_benchmark.rb'
 end
 
 desc "Benchmarking generator"
 task :benchmark_generator do
   ENV['RUBYOPT'] = "-Ilib:ext #{ENV['RUBYOPT']}"
-  ruby 'benchmarks/generator_benchmark.rb'
+  myruby 'benchmarks/generator_benchmark.rb'
+  myruby 'benchmarks/generator2_benchmark.rb'
 end
 
 desc "Benchmarking library"
 task :benchmark => [ :benchmark_parser, :benchmark_generator ]
 
-desc "Clean benchmark data"
-task :clean_benchmark_data do
-  rm_rf Dir['benchmarks/data/*.{dat,log}']
-end
-
 desc "Create RDOC documentation"
 task :doc => [ :version, EXT_PARSER_SRC ] do
-  system "rdoc -S -o doc -m main.txt doc-templates/main.txt lib/json.rb #{FileList['lib/json/**/*.rb']} #{EXT_PARSER_SRC} #{EXT_GENERATOR_SRC}"
+  sh "rdoc -o doc -t '#{PKG_TITLE}' -m README README lib/json.rb #{FileList['lib/json/**/*.rb']} #{EXT_PARSER_SRC} #{EXT_GENERATOR_SRC}"
 end
 
-if defined?(Gem) and defined?(Rake::GemPackageTask) and defined?(Rake::ExtensionTask)
+if defined?(Gem) and defined?(Rake::GemPackageTask)
   spec_pure = Gem::Specification.new do |s|
     s.name = 'json_pure'
     s.version = PKG_VERSION
-    s.summary = "A JSON implementation in Ruby"
+    s.summary = PKG_TITLE
     s.description = "This is a JSON implementation in pure Ruby."
 
     s.files = PKG_FILES
@@ -173,26 +193,28 @@ if defined?(Gem) and defined?(Rake::GemPackageTask) and defined?(Rake::Extension
     s.default_executable = "edit_json.rb"
 
     s.has_rdoc = true
+    s.extra_rdoc_files << 'README'
     s.rdoc_options <<
-      '--title' <<  'JSON -- A JSON implemention' <<
-      '--main' << 'JSON' << '--line-numbers'
+      '--title' <<  'JSON implemention for ruby' << '--main' << 'README'
     s.test_files.concat Dir['tests/*.rb']
 
     s.author = "Florian Frank"
     s.email = "flori@ping.de"
-    s.homepage = "http://json.rubyforge.org"
+    s.homepage = "http://flori.github.com/#{PKG_NAME}"
     s.rubyforge_project = "json"
   end
 
   Rake::GemPackageTask.new(spec_pure) do |pkg|
       pkg.need_tar = true
-      pkg.package_files += PKG_FILES
+      pkg.package_files = PKG_FILES
   end
+end
 
+if defined?(Gem) and defined?(Rake::GemPackageTask) and defined?(Rake::ExtensionTask)
   spec_ext = Gem::Specification.new do |s|
     s.name = 'json'
     s.version = PKG_VERSION
-    s.summary = "A JSON implementation as a Ruby extension"
+    s.summary = PKG_TITLE
     s.description = "This is a JSON implementation as a Ruby extension in C."
 
     s.files = PKG_FILES
@@ -208,14 +230,14 @@ if defined?(Gem) and defined?(Rake::GemPackageTask) and defined?(Rake::Extension
     s.default_executable = "edit_json.rb"
 
     s.has_rdoc = true
+    s.extra_rdoc_files << 'README'
     s.rdoc_options <<
-      '--title' <<  'JSON -- A JSON implemention' <<
-      '--main' << 'JSON' << '--line-numbers'
+      '--title' <<  'JSON implemention for Ruby' << '--main' << 'README'
     s.test_files.concat Dir['tests/*.rb']
 
     s.author = "Florian Frank"
     s.email = "flori@ping.de"
-    s.homepage = "http://json.rubyforge.org"
+    s.homepage = "http://flori.github.com/#{PKG_NAME}"
     s.rubyforge_project = "json"
   end
 
@@ -228,16 +250,16 @@ if defined?(Gem) and defined?(Rake::GemPackageTask) and defined?(Rake::Extension
     ext.name            = 'parser'
     ext.gem_spec        = spec_ext
     ext.cross_compile   = true
-    ext.cross_platform  = 'i386-mswin32'
+    ext.cross_platform  = %w[i386-mswin32 i386-mingw32]
     ext.ext_dir         = 'ext/json/ext/parser'
     ext.lib_dir         = 'lib/json/ext'
   end
-    
+
   Rake::ExtensionTask.new do |ext|
     ext.name            = 'generator'
     ext.gem_spec        = spec_ext
     ext.cross_compile   = true
-    ext.cross_platform  = 'i386-mswin32'
+    ext.cross_platform  = %w[i386-mswin32 i386-mingw32]
     ext.ext_dir         = 'ext/json/ext/generator'
     ext.lib_dir         = 'lib/json/ext'
   end
@@ -260,11 +282,11 @@ EOT
   end
 end
 
-# TODO task :release => [ :version, :clean, :package_win ]
 desc "Build all gems and archives for a new release."
 task :release => [ :clean, :version, :cross, :native, :gem ] do
-  system "#$0 clean native gem"
-  system "#$0 clean package"
+  sh "#$0 clean native gem"
+  sh "#$0 clean package"
 end
 
+desc "Compile in the the source directory"
 task :default => [ :version, :compile_ext ]
