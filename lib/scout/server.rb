@@ -46,7 +46,7 @@ module Scout
       @history      = Hash.new
       @logger       = logger
       @plugin_plan  = []
-      @directives   = {} # take_snapshots
+      @directives   = {} # take_snapshots, interval, sleep_interval
       @new_plan     = false
 
       # the block is only passed for install and test, since we split plan retrieval outside the lockfile for run
@@ -103,6 +103,12 @@ module Scout
           end
         end
       end
+    end
+    
+    # To distribute pings across a longer timeframe, the agent will sleep for a given
+    # amount of time. When using the --force option the sleep_interval is ignored.
+    def sleep_interval
+      (@history['directives'] || {})['sleep_interval'].to_f
     end
 
     # uses values from history and current time to determine if we should checkin at this time

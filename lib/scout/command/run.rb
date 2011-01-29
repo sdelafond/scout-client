@@ -11,6 +11,12 @@ module Scout
         # TODO: too much external logic of command doing things TO server. This should be moved into the server class.
         @scout = Scout::Server.new(server, key, history, log)
         @scout.load_history
+        
+        unless @force
+          log.debug "Sleeping #{@scout.sleep_interval} sec"
+          sleep @scout.sleep_interval
+        end
+        
         @scout.fetch_plan
 
         if @scout.new_plan || @scout.time_to_checkin?  || @force
