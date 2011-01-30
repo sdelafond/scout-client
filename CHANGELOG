@@ -1,6 +1,6 @@
 == 5.1.5
 
-* Added sleep interval directive
+* Added sleep interval directive. Agent will only sleep when used in non-interactive mode.
 
 == 5.1.4
 
