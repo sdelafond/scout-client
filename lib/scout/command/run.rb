@@ -13,7 +13,7 @@ module Scout
         @scout.load_history
         
         unless $stdin.tty?
-          log.debug "Sleeping #{@scout.sleep_interval} sec"
+          log.info "Sleeping #{@scout.sleep_interval} sec" if log
           sleep @scout.sleep_interval
         end
         
