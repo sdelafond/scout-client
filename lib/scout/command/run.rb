@@ -12,7 +12,7 @@ module Scout
         @scout = Scout::Server.new(server, key, history, log)
         @scout.load_history
         
-        unless @force
+        unless $stdin.tty?
           log.debug "Sleeping #{@scout.sleep_interval} sec"
           sleep @scout.sleep_interval
         end
