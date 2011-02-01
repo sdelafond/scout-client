@@ -58,14 +58,12 @@ spec = Gem::Specification.new do |spec|
 
   spec.add_dependency "elif"
 
-  spec.author = "Highgroove Studios"
-  spec.email = "scout@highgroove.com"
+  spec.author = "Scout Monitoring"
+  spec.email = "support@scoutapp.com"
   spec.rubyforge_project = "scout"
   spec.homepage = "http://scoutapp.com"
   spec.description = <<END_DESC
 Scout makes monitoring and reporting on your web applications as flexible and simple as possible.
-
-Scout is a product of Highgroove Studios.
 END_DESC
 end
 
