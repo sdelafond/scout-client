@@ -1,3 +1,8 @@
+== 5.2.0
+
+* Added private-key based code signing
+* Added local plugin overrides 
+
 == 5.1.5
 
 * Added sleep interval directive. Agent will only sleep when used in non-interactive mode.

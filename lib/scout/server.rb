@@ -7,6 +7,7 @@ require "timeout"
 require "stringio"
 require "zlib"
 require "socket"
+require "base64"
 
 $LOAD_PATH << File.join(File.dirname(__FILE__), *%w[.. .. vendor json_pure lib])
 require "json"
@@ -48,6 +49,7 @@ module Scout
       @plugin_plan  = []
       @directives   = {} # take_snapshots, interval, sleep_interval
       @new_plan     = false
+      @local_plugin_path = File.dirname(history_file) # just put overrides and ad-hoc plugins in same directory as history file.
 
       # the block is only passed for install and test, since we split plan retrieval outside the lockfile for run
       if block_given?
@@ -85,18 +87,51 @@ module Scout
             end
 
             body_as_hash = JSON.parse(body)
-            @plugin_plan = Array(body_as_hash["plugins"])
-            @directives = body_as_hash["directives"].is_a?(Hash) ? body_as_hash["directives"] : Hash.new
 
-            @history["plan_last_modified"] = res["last-modified"]
-            @history["old_plugins"]        = @plugin_plan
-            @history["directives"]         = @directives
+            # ensure all the plugins in the new plan are properly signed
+            # load the public key - need this to determine if the plugins are good
+            public_key_text = File.read(File.join( File.dirname(__FILE__), *%w[.. .. data code_id_rsa.pub] ))
+            debug "Loaded public key used for verifying code signatures (#{public_key_text.size} bytes)"
+            @code_public_key = OpenSSL::PKey::RSA.new(public_key_text)
 
-            info "Plan loaded.  (#{@plugin_plan.size} plugins:  " +
-                 "#{@plugin_plan.map { |p| p['name'] }.join(', ')})" +
-                 ". Directives: #{@directives.to_a.map{|a|  "#{a.first}:#{a.last}"}.join(", ")}"
+            temp_plugins=Array(body_as_hash["plugins"])
 
-            @new_plan = true # used in determination if we should checkin this time or not
+            plugin_signature_error = false
+            temp_plugins.each do |plugin|
+              signature=plugin['signature']
+              id_and_name = "#{plugin['id']}-#{plugin['name']}".sub(/\A-/, "")
+              if signature
+                code=plugin['code'].gsub(/ +$/,'')
+                code_signature=Base64.decode64(signature)
+                if !@code_public_key.verify(OpenSSL::Digest::SHA1.new, code_signature, code)
+                  warn "#{id_and_name} signature doesn't match!"
+                  plugin_signature_error=true
+                end
+              else
+                warn "#{id_and_name} is not signed!"
+                plugin_signature_error=true
+              end
+            end
+
+            if(!plugin_signature_error)
+
+              @plugin_plan = Array(body_as_hash["plugins"])
+              @directives = body_as_hash["directives"].is_a?(Hash) ? body_as_hash["directives"] : Hash.new
+
+              @history["plan_last_modified"] = res["last-modified"]
+              @history["old_plugins"]        = @plugin_plan
+              @history["directives"]         = @directives
+
+              info "Plan loaded.  (#{@plugin_plan.size} plugins:  " +
+                   "#{@plugin_plan.map { |p| p['name'] }.join(', ')})" +
+                   ". Directives: #{@directives.to_a.map{|a|  "#{a.first}:#{a.last}"}.join(", ")}"
+
+              @new_plan = true # used in determination if we should checkin this time or not
+            else
+              info "There was a problem with plugin signatures. Reusing old plan."
+              @plugin_plan = Array(@history["old_plugins"])
+              @directives = @history["directives"] || Hash.new
+            end
           rescue Exception
             fatal "Plan from server was malformed."
             exit
@@ -172,10 +207,12 @@ module Scout
     # It then loads the plugin and runs it with a PLUGIN_TIMEOUT time limit.
     # The plugin generates data, alerts, and errors. In addition, it will
     # set memory and last_run information in the history file.
-    # 
+    #
+    # The plugin argument is a hash with keys: id, name, code, timeout, options, signature.
     def process_plugin(plugin)
       info "Processing the '#{plugin['name']}' plugin:"
       id_and_name = "#{plugin['id']}-#{plugin['name']}".sub(/\A-/, "")
+      plugin_id = plugin['id']
       last_run    = @history["last_runs"][id_and_name] ||
                     @history["last_runs"][plugin['name']]
       memory      = @history["memory"][id_and_name] ||
@@ -186,9 +223,21 @@ module Scout
       if last_run.nil? or delta.between?(-RUN_DELTA, 0) or delta >= 0
         debug "Plugin is past interval and needs to be run.  " +
               "(last run:  #{last_run || 'nil'})"
+        code_to_run = plugin['code']
+        plugin_state = :normal
+        if plugin_id && plugin_id != ""
+          debug "Checking for local plugin override"
+          override_path=File.join(@local_plugin_path, "#{plugin_id}.rb")
+          debug "checking at #{override_path}"
+          if File.exist?(override_path)
+            debug "Using code in #{override_path} for plugin id=#{plugin_id}"
+            code_to_run = File.read(override_path)
+            plugin_state = :override
+          end
+        end
         debug "Compiling plugin..."
         begin
-          eval( plugin['code'],
+          eval( code_to_run,
                 TOPLEVEL_BINDING,
                 plugin['path'] || plugin['name'] )
           info "Plugin compiled."
