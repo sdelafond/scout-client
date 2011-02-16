@@ -64,7 +64,7 @@ module Scout
     # to execute, along with all options.
     #
     # This method has a couple of side effects:
-    # 1) it sets the @plugin plan with either A) whatever is in history, B) the results of the /plan retrieval
+    # 1) it sets the @plugin_plan with either A) whatever is in history, B) the results of the /plan retrieval
     # 2) it sets @checkin_to = true IF so directed by the scout server
     def fetch_plan
       url = urlify(:plan)
@@ -77,7 +77,10 @@ module Scout
         if res.is_a? Net::HTTPNotModified
           info "Plan not modified. Will reuse saved plan."
           @plugin_plan = Array(@history["old_plugins"])
+          # Add local plugins to the plan. Note that local plugins are NOT saved to history file
+          @plugin_plan += get_local_plugins
           @directives = @history["directives"] || Hash.new
+
         else
           info "plan has been modified. Will run the new plan now."
           begin
@@ -117,9 +120,8 @@ module Scout
 
               @plugin_plan = Array(body_as_hash["plugins"])
               @directives = body_as_hash["directives"].is_a?(Hash) ? body_as_hash["directives"] : Hash.new
-
               @history["plan_last_modified"] = res["last-modified"]
-              @history["old_plugins"]        = @plugin_plan
+              @history["old_plugins"]        = @plugin_plan.clone # important that the plan is cloned -- we're going to add local plugins, and they shouldn't go into history
               @history["directives"]         = @directives
 
               info "Plan loaded.  (#{@plugin_plan.size} plugins:  " +
@@ -132,6 +134,10 @@ module Scout
               @plugin_plan = Array(@history["old_plugins"])
               @directives = @history["directives"] || Hash.new
             end
+
+            # Add local plugins to the plan. Note that local plugins are NOT saved to history file
+            @plugin_plan += get_local_plugins
+
           rescue Exception
             fatal "Plan from server was malformed."
             exit
@@ -139,7 +145,28 @@ module Scout
         end
       end
     end
-    
+
+    # returns an array of hashes representing local plugins found on the filesystem
+    # The glob pattern requires that filenames begin with a letter,
+    # which excludes plugin overrides (like 12345.rb)
+    def get_local_plugins
+      local_plugin_paths=Dir.glob(File.join(@local_plugin_path,"[a-zA-Z]*.rb"))
+      local_plugin_paths.map do |plugin_path|
+        begin
+          {
+            'name' => File.basename(plugin_path),
+            'local_filename' => File.basename(plugin_path),
+            'origin' => 'LOCAL',
+            'code' => File.read(plugin_path),
+            'interval' => 0
+          }
+        rescue => e
+          info "Error trying to read local plugin: #{plugin_path} -- #{e.backtrace.join('\n')}"
+          nil
+        end
+      end.compact
+    end
+
     # To distribute pings across a longer timeframe, the agent will sleep for a given
     # amount of time. When using the --force option the sleep_interval is ignored.
     def sleep_interval
@@ -188,11 +215,12 @@ module Scout
           process_plugin(plugin)
         rescue Exception
           @checkin[:errors] << build_report(
-            plugin['id'],
+            plugin,
             :subject => "Exception:  #{$!.message}.",
             :body    => $!.backtrace
           )
           error("Encountered an error: #{$!.message}")
+          puts $!.backtrace.join('\n')
         end
       end
       take_snapshot if @directives['take_snapshots']
@@ -224,15 +252,13 @@ module Scout
         debug "Plugin is past interval and needs to be run.  " +
               "(last run:  #{last_run || 'nil'})"
         code_to_run = plugin['code']
-        plugin_state = :normal
         if plugin_id && plugin_id != ""
-          debug "Checking for local plugin override"
           override_path=File.join(@local_plugin_path, "#{plugin_id}.rb")
-          debug "checking at #{override_path}"
+          # debug "Checking for local plugin override file at #{override_path}"
           if File.exist?(override_path)
-            debug "Using code in #{override_path} for plugin id=#{plugin_id}"
             code_to_run = File.read(override_path)
-            plugin_state = :override
+            debug "Override file found - Using #{code_to_run.size} chars of code in #{override_path} for plugin id=#{plugin_id}"
+            plugin['origin'] = "OVERRIDE"
           end
         end
         debug "Compiling plugin..."
@@ -244,7 +270,7 @@ module Scout
         rescue Exception
           raise if $!.is_a? SystemExit
           error "Plugin would not compile: #{$!.message}"
-          @checkin[:errors] << build_report(plugin['id'],:subject => "Plugin would not compile", :body=>"#{$!.message}\n\n#{$!.backtrace}")
+          @checkin[:errors] << build_report(plugin,:subject => "Plugin would not compile", :body=>"#{$!.message}\n\n#{$!.backtrace}")
           return
         end
         debug "Loading plugin..."
@@ -261,7 +287,7 @@ module Scout
             end
           rescue Timeout::Error, PluginTimeoutError
             error "Plugin took too long to run."
-            @checkin[:errors] << build_report(plugin['id'],
+            @checkin[:errors] << build_report(plugin,
                                               :subject => "Plugin took too long to run",
                                               :body=>"Execution timed out.")
             return
@@ -269,7 +295,7 @@ module Scout
             raise if $!.is_a? SystemExit
             error "Plugin failed to run: #{$!.class}: #{$!.message}\n" +
                   "#{$!.backtrace.join("\n")}"
-            @checkin[:errors] << build_report(plugin['id'],
+            @checkin[:errors] << build_report(plugin,
                                               :subject => "Plugin failed to run",
                                               :body=>"#{$!.class}: #{$!.message}\n#{$!.backtrace.join("\n")}")
           end
@@ -283,7 +309,7 @@ module Scout
               reports << report
             end
             reports.each do |fields|
-              @checkin[plural] << build_report(plugin['id'], fields)
+              @checkin[plural] << build_report(plugin, fields)
             end
           end
           
@@ -293,7 +319,7 @@ module Scout
           @history["memory"][id_and_name]    = data[:memory]
         else
           @checkin[:errors] << build_report(
-            plugin['id'],
+            plugin,
             :subject => "Plugin would not load."
           )
         end
@@ -372,10 +398,13 @@ module Scout
 
     private
     
-    def build_report(plugin_id, fields)
-      { :plugin_id  => plugin_id,
+    def build_report(plugin_hash, fields)
+      { :plugin_id  => plugin_hash['plugin_id'],
         :created_at => Time.now.utc.strftime("%Y-%m-%d %H:%M:%S"),
-        :fields     => fields }
+        :fields     => fields,
+        :local_filename => plugin_hash['local_filename'], # this will be nil unless it's an ad-hoc plugin
+        :origin => plugin_hash['origin'] # [LOCAL|OVERRIDE|nil]
+      }
     end
 
     def urlify(url_name, options = Hash.new)
