@@ -91,34 +91,33 @@ module Scout
 
             body_as_hash = JSON.parse(body)
 
-            # ensure all the plugins in the new plan are properly signed
-            # load the public key - need this to determine if the plugins are good
+            # Ensure all the plugins in the new plan are properly signed. Load the public key for this.
             public_key_text = File.read(File.join( File.dirname(__FILE__), *%w[.. .. data code_id_rsa.pub] ))
             debug "Loaded public key used for verifying code signatures (#{public_key_text.size} bytes)"
-            @code_public_key = OpenSSL::PKey::RSA.new(public_key_text)
+            code_public_key = OpenSSL::PKey::RSA.new(public_key_text)
 
             temp_plugins=Array(body_as_hash["plugins"])
-
             plugin_signature_error = false
+
             temp_plugins.each do |plugin|
               signature=plugin['signature']
               id_and_name = "#{plugin['id']}-#{plugin['name']}".sub(/\A-/, "")
               if signature
-                code=plugin['code'].gsub(/ +$/,'')
-                code_signature=Base64.decode64(signature)
-                if !@code_public_key.verify(OpenSSL::Digest::SHA1.new, code_signature, code)
+                code=plugin['code'].gsub(/ +$/,'') # we strip trailing whitespace before calculating signatures. Same here.
+                decoded_signature=Base64.decode64(signature)
+                if !code_public_key.verify(OpenSSL::Digest::SHA1.new, decoded_signature, code)
                   warn "#{id_and_name} signature doesn't match!"
                   plugin_signature_error=true
                 end
               else
-                warn "#{id_and_name} is not signed!"
+                warn "#{id_and_name} has no signature!"
                 plugin_signature_error=true
               end
             end
 
-            if(!plugin_signature_error)
 
-              @plugin_plan = Array(body_as_hash["plugins"])
+            if(!plugin_signature_error)
+              @plugin_plan = temp_plugins
               @directives = body_as_hash["directives"].is_a?(Hash) ? body_as_hash["directives"] : Hash.new
               @history["plan_last_modified"] = res["last-modified"]
               @history["old_plugins"]        = @plugin_plan.clone # important that the plan is cloned -- we're going to add local plugins, and they shouldn't go into history
@@ -138,8 +137,8 @@ module Scout
             # Add local plugins to the plan. Note that local plugins are NOT saved to history file
             @plugin_plan += get_local_plugins
 
-          rescue Exception
-            fatal "Plan from server was malformed."
+          rescue Exception =>e
+            fatal "Plan from server was malformed: #{e.message} - #{e.backtrace}"
             exit
           end
         end
