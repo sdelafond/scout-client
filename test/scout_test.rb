@@ -3,6 +3,7 @@
 #
 # Scout internal note: See documentation in scout_sinatra for running tests.
 #
+$VERBOSE=nil
 $LOAD_PATH << File.expand_path( File.dirname(__FILE__) + '/../lib' )
 require 'test/unit'
 require 'lib/scout'
@@ -35,7 +36,6 @@ class ScoutTest < Test::Unit::TestCase
     @plugin=@client.plugins.first
     # avoid client limit issues
     assert @client.account.subscription.update_attribute(:clients,100)
-
   end
 
   def test_should_checkin_during_interactive_install
@@ -100,7 +100,7 @@ class ScoutTest < Test::Unit::TestCase
     @plugin.save
     scout(@client.key)
     @client.reload
-    assert_match /^Exception/, @client.plugins.first.plugin_errors.first.subject, "first plugin should have an error"
+    assert_match(/^Exception/, @client.plugins.first.plugin_errors.first.subject, "first plugin should have an error")
     assert_in_delta Time.now.utc.to_i, @client.reload.last_checkin.to_i, 100
     assert_in_delta Time.now.utc.to_i, @client.plugins.last.last_reported_at.to_i, 100, "the non-failing plugin should still run"
   end
