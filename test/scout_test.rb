@@ -143,11 +143,7 @@ class ScoutTest < Test::Unit::TestCase
     load_average = Plugin.find(1)
     assert_in_delta Time.now.utc.to_i, load_average.last_reported_at.to_i, 100
   end
-  
-  def test_should_generate_process_list
     
-  end
-  
   def test_should_generate_summaries
     
   end
