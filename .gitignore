@@ -3,5 +3,4 @@ pkg/*
 .DS_Store
 **/.DS_Store
 .idea
-test/history.yml
-history.yml
+working_dir/

@@ -18,12 +18,12 @@ require "logger"
 
 SCOUT_PATH = '../scout'
 SINATRA_PATH = '../scout_sinatra'
-PATH_TO_DATA_FILE = File.expand_path( File.dirname(__FILE__) ) + '/history.yml'
+PATH_TO_DATA_FILE = File.expand_path( File.dirname(__FILE__) ) + '/working_dir/history.yml'
 PATH_TO_TEST_PLUGIN = File.expand_path( File.dirname(__FILE__) ) + '/my_plugin.rb'
 
 class ScoutTest < Test::Unit::TestCase
   def setup    
-    load_fixtures :clients, :plugins, :accounts, :subscriptions
+    load_fixtures :clients, :plugins, :accounts, :subscriptions, :plugin_metas
     clear_tables :plugin_activities, :ar_descriptors, :summaries
     # delete the existing history file
     File.unlink(PATH_TO_DATA_FILE) if File.exist?(PATH_TO_DATA_FILE)
@@ -87,23 +87,6 @@ class ScoutTest < Test::Unit::TestCase
     assert @client.reload.last_checkin > prev_checkin
   end
 
-  # The offeding plugin should generate an error, and should not keep other plugins in the plan from running
-  def test_plugin_does_not_inherit_from_scout_plugin
-    code=<<-EOC
-      class BadPlugin
-        def build_report
-          report(:answer=>42)
-        end
-      end
-    EOC
-    @plugin.code=code
-    @plugin.save
-    scout(@client.key)
-    @client.reload
-    assert_match(/^Exception/, @client.plugins.first.plugin_errors.first.subject, "first plugin should have an error")
-    assert_in_delta Time.now.utc.to_i, @client.reload.last_checkin.to_i, 100
-    assert_in_delta Time.now.utc.to_i, @client.plugins.last.last_reported_at.to_i, 100, "the non-failing plugin should still run"
-  end
 
   # indirect way of assessing reuse: examining log
   def test_reuse_existing_plan
@@ -133,15 +116,22 @@ class ScoutTest < Test::Unit::TestCase
   end
   
   
-  def test_should_generate_alert
+    def test_should_generate_alert
     prev_alerts = Alert.count
-    
+
     load_average = Plugin.find(1)
-    load_average.code = "class MyPlugin < Scout::Plugin; def build_report; alert('yo'); end; end"
+
+    # In the real world, the md5 is taken care of automatically, and private key signing takes place manually.
+    # These extra steps are necessary because we have the Sinatra version of the models, not the Rails version.
+    new_code="class MyPlugin < Scout::Plugin; def build_report; alert('yo'); end; end"
+    load_average.meta.code = new_code
+    load_average.meta.save
+    load_average.signature="UvGN346csRvuvDyROApHspOAx2QFcU2X3xLzvSUq0U2eV+/3WyoZFI8/SGD9\nW9FCZud9Q5Bx/qFVfxQTtcRkwt4R3l3NtglH9yQpQkmuKv+1uT00R3WMAJsW\nrc7j3NhBaRnbEWHR/a0jRxYd6PhA3UP86oYd6UePCOegwWv7w38=\n"
+    load_average.code_md5_signature=Digest::MD5.hexdigest(new_code)
     load_average.save
     
     scout(@client.key,'-F')
-    
+
     assert_in_delta Time.now.utc.to_i, @client.reload.last_checkin.to_i, 100
     assert_equal prev_alerts + 1, Alert.count
   end
