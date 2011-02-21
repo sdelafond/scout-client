@@ -1,7 +1,6 @@
 #!/usr/bin/env ruby -wKU
 
 require "optparse"
-require "logger"
 require "fileutils"
 
 module Scout
@@ -136,16 +135,17 @@ module Scout
       @force   = options[:force]   || false
 
       @args    = args
-    end
 
-    attr_reader :server, :history
-
-    def config_dir
-      return @config_dir if defined? @config_dir
+      # create config dir if necessary
       @config_dir = File.dirname(history)
       FileUtils.mkdir_p(@config_dir) # ensure dir exists
-      @config_dir
+
+      @log_path = File.join(@config_dir, "latest_run.log")
+
     end
+
+    attr_reader :server, :history, :config_dir, :log_path
+
 
     def verbose?
       @verbose
@@ -154,12 +154,15 @@ module Scout
     def log
       return @log if defined? @log
       @log = if verbose?
-               log                 = Logger.new($stdout)
+               log                 = ScoutLogger.new($stdout)
                log.datetime_format = "%Y-%m-%d %H:%M:%S "
                log.level           = level
                log
              else
-               nil
+               log                 = ScoutLogger.new(nil)
+               log.datetime_format = "%Y-%m-%d %H:%M:%S "
+               log.level           = Logger::DEBUG
+               log
              end
     end
 

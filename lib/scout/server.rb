@@ -101,7 +101,6 @@ module Scout
             temp_plugins.each do |plugin|
               signature=plugin['signature']
               id_and_name = "#{plugin['id']}-#{plugin['name']}".sub(/\A-/, "")
-puts "id_and_name: #{id_and_name}"
               if signature
                 code=plugin['code'].gsub(/ +$/,'') # we strip trailing whitespace before calculating signatures. Same here.
                 decoded_signature=Base64.decode64(signature)
@@ -213,7 +212,6 @@ puts "id_and_name: #{id_and_name}"
         begin
           process_plugin(plugin)
         rescue Exception
-puts "************************************ here"
           @checkin[:errors] << build_report(
             plugin,
             :subject => "Exception:  #{$!.message}.",

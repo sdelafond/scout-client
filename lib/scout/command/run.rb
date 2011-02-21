@@ -30,8 +30,25 @@ module Scout
           create_pid_file_or_exit
           @scout.run_plugins_by_plan
           @scout.save_history
+
+          begin
+            # Since this is a new checkin, overwrite the existing log
+            File.open(log_path, "w") do|log_file|
+              log_file.puts log.messages # log.messages is an array of every message logged during this run
+            end
+          rescue
+            log.info "Could not write to #{log_path}."
+          end
         else
           log.info "Not time to checkin yet. Next checkin in #{@scout.next_checkin}. Override by passing --force to the scout command" if log
+          begin
+            # Since this a ping, append to the existing log
+            File.open(log_path, "a") do|log_file|
+              log_file.puts log.messages
+            end
+          rescue
+            log.info "Could not write to #{log_path}."
+          end
         end
       end
     end

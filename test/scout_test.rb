@@ -18,7 +18,10 @@ require "logger"
 
 SCOUT_PATH = '../scout'
 SINATRA_PATH = '../scout_sinatra'
-PATH_TO_DATA_FILE = File.expand_path( File.dirname(__FILE__) ) + '/working_dir/history.yml'
+AGENT_DIR = File.expand_path( File.dirname(__FILE__) ) + '/working_dir/'
+PATH_TO_DATA_FILE = File.join AGENT_DIR, 'history.yml'
+AGENT_LOG = File.join AGENT_DIR, 'latest_run.log'
+
 PATH_TO_TEST_PLUGIN = File.expand_path( File.dirname(__FILE__) ) + '/my_plugin.rb'
 
 class ScoutTest < Test::Unit::TestCase
@@ -27,6 +30,7 @@ class ScoutTest < Test::Unit::TestCase
     clear_tables :plugin_activities, :ar_descriptors, :summaries
     # delete the existing history file
     File.unlink(PATH_TO_DATA_FILE) if File.exist?(PATH_TO_DATA_FILE)
+    File.unlink(AGENT_LOG) if File.exist?(AGENT_LOG)
     Client.update_all "last_checkin='#{5.days.ago.strftime('%Y-%m-%d %H:%M')}'"
     # ensures that fields are created
     # Plugin.update_all "converted_at = '#{5.days.ago.strftime('%Y-%m-%d %H:%M')}'"
@@ -76,7 +80,7 @@ class ScoutTest < Test::Unit::TestCase
     scout(@client.key)
     assert_equal prev_checkin, @client.reload.last_checkin
   end
-  
+
   def test_should_run_when_forced
     # do an initial checkin...should work
     test_should_run_first_time
@@ -94,6 +98,22 @@ class ScoutTest < Test::Unit::TestCase
 
     res=scout(@client.key, '-v')
     assert_match "Plan not modified",res
+  end
+
+  def test_should_write_log_on_checkin
+    assert !File.exist?(AGENT_LOG)
+    test_should_run_first_time
+    assert File.exist?(AGENT_LOG)
+  end
+
+  def test_should_append_to_log_on_ping
+    test_should_run_first_time
+    assert File.exist?(AGENT_LOG)
+    log_file_size=File.read(AGENT_LOG).size
+    sleep 1
+    scout(@client.key)
+    assert File.read(AGENT_LOG).size > log_file_size, "log should be longer after ping"
+
   end
 
 
