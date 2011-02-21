@@ -21,8 +21,8 @@ SINATRA_PATH = '../scout_sinatra'
 AGENT_DIR = File.expand_path( File.dirname(__FILE__) ) + '/working_dir/'
 PATH_TO_DATA_FILE = File.join AGENT_DIR, 'history.yml'
 AGENT_LOG = File.join AGENT_DIR, 'latest_run.log'
-
-PATH_TO_TEST_PLUGIN = File.expand_path( File.dirname(__FILE__) ) + '/my_plugin.rb'
+PLUGINS_PROPERTIES = File.join AGENT_DIR, 'plugins.properties'
+PATH_TO_TEST_PLUGIN = File.expand_path( File.dirname(__FILE__) ) + '/plugins/temp_plugin.rb'
 
 class ScoutTest < Test::Unit::TestCase
   def setup    
@@ -31,6 +31,8 @@ class ScoutTest < Test::Unit::TestCase
     # delete the existing history file
     File.unlink(PATH_TO_DATA_FILE) if File.exist?(PATH_TO_DATA_FILE)
     File.unlink(AGENT_LOG) if File.exist?(AGENT_LOG)
+    File.unlink(PLUGINS_PROPERTIES) if File.exist?(PLUGINS_PROPERTIES)
+
     Client.update_all "last_checkin='#{5.days.ago.strftime('%Y-%m-%d %H:%M')}'"
     # ensures that fields are created
     # Plugin.update_all "converted_at = '#{5.days.ago.strftime('%Y-%m-%d %H:%M')}'"
@@ -260,13 +262,49 @@ class ScoutTest < Test::Unit::TestCase
     end
   end
 
+  def test_plugin_properties
+
+    code=<<-EOC
+      class LookupTest < Scout::Plugin
+        OPTIONS=<<-EOS
+          foo:
+            default: 0
+        EOS
+        def build_report
+          report :foo_value=>option(:foo)
+        end
+      end
+    EOC
+
+    run_scout_test(code, 'foo=13') do |res|
+      assert_match ':fields=>{:foo_value=>"13"', res
+    end
+
+    properties=<<-EOS
+# this is a properties file
+myfoo=99
+mybar=100
+    EOS
+
+    properties_path=File.join(AGENT_DIR,"plugins.properties")
+    File.open(properties_path,"w") {|f| f.write properties}
+
+    run_scout_test(code, 'foo=lookup:myfoo') do |res|
+      assert_match ':fields=>{:foo_value=>"99"', res
+    end
+
+    #cleanup
+    File.unlink(properties_path)
+  end
+
+
   ######################
   ### Helper Methods ###
   ######################
   
   # Runs the scout command with the given +key+ and +opts+ string (ex: '-F').
   def scout(key, opts = String.new)
-    `bin/scout #{key} -s http://localhost:4567 -d #{PATH_TO_DATA_FILE} #{opts}`
+   `bin/scout #{key} -s http://localhost:4567 -d #{PATH_TO_DATA_FILE} #{opts}`
   end
 
   # you can use this, but you have to create the plugin file and clean up afterwards.
@@ -275,7 +313,7 @@ class ScoutTest < Test::Unit::TestCase
     `bin/scout test #{path_to_test_plugin} -d #{PATH_TO_DATA_FILE} #{opts}`
   end
 
-  # The prefered way to test the agent in test mode. This creates a plugin file with the code you provide,
+  # The preferred way to test the agent in test mode. This creates a plugin file with the code you provide,
   # runs the agent in test mode, and cleans up the file.
   def run_scout_test(code,opts=String.new)
     File.open(PATH_TO_TEST_PLUGIN,"w") do |file|

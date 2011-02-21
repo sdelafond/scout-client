@@ -59,8 +59,7 @@ module Scout
     end
     
     def option(name)
-      @options[name] ||
-      @options[name.is_a?(String) ? name.to_sym : String(name)]
+      @options[name] || @options[name.is_a?(String) ? name.to_sym : String(name)]
     end
 
     # Builds the data to send to the server.

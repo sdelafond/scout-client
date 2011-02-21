@@ -38,6 +38,7 @@ module Scout
 
     attr_reader :new_plan
     attr_reader :directives
+    attr_reader :plugin_config
 
     # Creates a new Scout Server connection.
     def initialize(server, client_key, history_file, logger = nil)
@@ -50,6 +51,25 @@ module Scout
       @directives   = {} # take_snapshots, interval, sleep_interval
       @new_plan     = false
       @local_plugin_path = File.dirname(history_file) # just put overrides and ad-hoc plugins in same directory as history file.
+      @plugin_config_path = File.join(@local_plugin_path, "plugins.properties")
+      @plugin_config = {}
+      if File.exist?(@plugin_config_path)
+        debug "Loading Plugin Configs at #{@plugin_config_path}"
+        begin
+          File.open(@plugin_config_path,"r").read.each_line do |line|
+            line.strip!
+            next if line[0] == '#'
+            next unless line.include? "="
+            k,v =line.split('=')
+            @plugin_config[k]=v
+          end
+          debug("#{@plugin_config.size} config(s) loaded.")
+        rescue
+          info "Error loading Plugin Configs at #{plugin_config_path}: #{$!}"
+        end
+      else
+        debug "No Plugin Configs at #{@plugin_config_path}"
+      end
 
       # the block is only passed for install and test, since we split plan retrieval outside the lockfile for run
       if block_given?
@@ -271,9 +291,23 @@ module Scout
           @checkin[:errors] << build_report(plugin,:subject => "Plugin would not compile", :body=>"#{$!.message}\n\n#{$!.backtrace}")
           return
         end
+
+        # Lookup any local options in plugin_config.properies as needed
+        options=(plugin['options'] || Hash.new)
+        options.each_pair do |k,v|
+          if v=~/^lookup:(.+)$/
+            lookup_key = $1.strip
+            if plugin_config[lookup_key]
+              options[k]=plugin_config[lookup_key]
+            else
+              info "Plugin #{id_and_name}: option #{k} appears to be a lookup, but we can't find #{lookup_key} in #{@plugin_config_path}"
+            end
+          end
+        end
+
+
         debug "Loading plugin..."
-        if job = Plugin.last_defined.load( last_run, (memory || Hash.new),
-                                           plugin['options'] || Hash.new )
+        if job = Plugin.last_defined.load( last_run, (memory || Hash.new), options)
           info "Plugin loaded."
           debug "Running plugin..."
           begin
