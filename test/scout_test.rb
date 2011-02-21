@@ -116,7 +116,7 @@ class ScoutTest < Test::Unit::TestCase
   end
   
   
-    def test_should_generate_alert
+  def test_should_generate_alert
     prev_alerts = Alert.count
 
     load_average = Plugin.find(1)
