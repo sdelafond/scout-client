@@ -39,6 +39,8 @@ module Scout
         heading "Agent directory Contents"
         text `ls -la #{config_dir}`
 
+        heading ""
+
         puts "Done"
 
         puts @contents.join("\n")

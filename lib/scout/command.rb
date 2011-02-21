@@ -36,6 +36,9 @@ module Scout
         opts.separator "    #{program_name}"
         opts.separator "    ... OR ..."
         opts.separator "    #{program_name} [OPTIONS] install"
+        opts.separator "  Troubleshoot:"
+        opts.separator "    #{program_name} troubleshoot"
+        opts.separator "    ... this will post info about your Scout installation to scoutapp.com."
         opts.separator "  Local plugin testing:"
         opts.separator "    #{program_name} [OPTIONS] test " +
                        "PATH_TO_PLUGIN [PLUGIN_OPTIONS]"
