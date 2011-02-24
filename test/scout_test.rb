@@ -148,7 +148,14 @@ class ScoutTest < Test::Unit::TestCase
     new_code="class MyPlugin < Scout::Plugin; def build_report; alert('yo'); end; end"
     load_average.meta.code = new_code
     load_average.meta.save
-    load_average.signature="UvGN346csRvuvDyROApHspOAx2QFcU2X3xLzvSUq0U2eV+/3WyoZFI8/SGD9\nW9FCZud9Q5Bx/qFVfxQTtcRkwt4R3l3NtglH9yQpQkmuKv+1uT00R3WMAJsW\nrc7j3NhBaRnbEWHR/a0jRxYd6PhA3UP86oYd6UePCOegwWv7w38=\n"
+    load_average.signature=<<EOS
+svVV4Qegk2KqqmiHW3ZzlAGFWZSVDPsWn6oCj6hLKWGEvupku7iltk8MLl9O
+XIIzzCpkQ1M4izxiQKv+7V9+revh7WJQJDl4xdIL2laYBYRpjHr61YTjCnvw
+/aJ1mx/dXHJ6JiYadrAHBIUty/387BAorytIINJppzVre5rWOKyI7ulpC423
+3v+qY6ZcpzUCvxDTI82x13xNcAfN6HkTE7RUtwhkaeKmJChEIwhiShdBirTP
+dDLxK2GuTGFCn5PWJWvbryQJIjI6CbLGwxq8D8FaOiq6FojfjtsDS3oyR/Vl
+2EHBYcHwyZm6WcBypyXblUeqBfZLezfqF1QdYP76HA==
+EOS
     load_average.code_md5_signature=Digest::MD5.hexdigest(new_code)
     load_average.save
     
