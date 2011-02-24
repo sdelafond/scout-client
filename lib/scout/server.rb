@@ -392,7 +392,8 @@ module Scout
                    :alerts    => Array.new,
                    :errors    => Array.new,
                    :summaries => Array.new,
-                   :snapshot  => '' }
+                   :snapshot  => '',
+                   :config_path => File.expand_path(File.dirname(@history_file))}
     end
 
     def show_checkin(printer = :p)

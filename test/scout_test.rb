@@ -172,7 +172,14 @@ EOS
     load_average = Plugin.find(1)
     assert_in_delta Time.now.utc.to_i, load_average.last_reported_at.to_i, 100
   end
-    
+
+  def test_should_set_config_path
+    assert @client.config_path.blank?
+    test_should_run_first_time
+    @client.reload
+    assert_equal AGENT_DIR, @client.config_path+"/"
+  end
+
   def test_should_generate_summaries
     
   end
