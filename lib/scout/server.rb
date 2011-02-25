@@ -125,11 +125,11 @@ module Scout
                 code=plugin['code'].gsub(/ +$/,'') # we strip trailing whitespace before calculating signatures. Same here.
                 decoded_signature=Base64.decode64(signature)
                 if !code_public_key.verify(OpenSSL::Digest::SHA1.new, decoded_signature, code)
-                  warn "#{id_and_name} signature doesn't match!"
+                  info "#{id_and_name} signature doesn't match!"
                   plugin_signature_error=true
                 end
               else
-                warn "#{id_and_name} has no signature!"
+                info "#{id_and_name} has no signature!"
                 plugin_signature_error=true
               end
             end
