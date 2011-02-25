@@ -311,6 +311,52 @@ mybar=100
     File.unlink(properties_path)
   end
 
+  def test_plugin_override
+    override_path=File.join(AGENT_DIR,"#{@plugin.id}.rb")
+    code=<<-EOC
+      class OverrideTest < Scout::Plugin
+        def build_report; report(:foo=>99);end
+      end
+    EOC
+    File.open(override_path,"w"){|f|f.write(code)}
+
+    scout(@client.key)
+
+    report=YAML.load(@plugin.reload.last_report_raw)
+    assert report["foo"].is_a?(Array)
+    assert_equal 99, report["foo"].first
+    File.delete(override_path)
+  end
+
+  def test_plugin_override_removed
+    test_plugin_override
+    # have to clear the RRD files so it doesn't complain about checking in to quickly
+    Dir.glob(SCOUT_PATH+'/test/rrdbs/db/*.rrd').each { |f| File.unlink(f) }
+    scout(@client.key)
+
+    report=YAML.load(@plugin.reload.last_report_raw)
+    assert_nil report["foo"], "report shouldn't contain 'foo' field from the override"
+    assert report["load"].is_a?(Array)
+    assert_equal 2, report["load"].first
+  end
+
+  def test_local_plugin
+    plugin_count=@client.plugins.count
+    local_path=File.join(AGENT_DIR,"my_local_plugin.rb")
+    code=<<-EOC
+      class LocalPluginTest < Scout::Plugin
+        def build_report; report(:answer=>42);end
+      end
+    EOC
+    File.open(local_path,"w"){|f|f.write(code)}
+
+    scout(@client.key)
+
+    assert_equal plugin_count+1, @client.reload.plugins.count, "there should be one additional plugin records -- created from the local plugin"
+
+    File.delete(local_path)
+  end
+
 
   ######################
   ### Helper Methods ###
@@ -318,7 +364,7 @@ mybar=100
   
   # Runs the scout command with the given +key+ and +opts+ string (ex: '-F').
   def scout(key, opts = String.new)
-   `bin/scout #{key} -s http://localhost:4567 -d #{PATH_TO_DATA_FILE} #{opts}`
+    `bin/scout #{key} -s http://localhost:4567 -d #{PATH_TO_DATA_FILE} #{opts}`
   end
 
   # you can use this, but you have to create the plugin file and clean up afterwards.

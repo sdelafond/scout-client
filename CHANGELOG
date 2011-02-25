@@ -1,7 +1,8 @@
-== 5.2.0
+== 5.2.1
 
 * Added private-key based code signing
-* Added local plugin overrides 
+* Added local plugin overrides
+* Added local ad-hoc plugins
 
 == 5.1.5
 
