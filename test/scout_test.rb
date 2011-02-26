@@ -332,7 +332,7 @@ mybar=100
     test_plugin_override
     # have to clear the RRD files so it doesn't complain about checking in to quickly
     Dir.glob(SCOUT_PATH+'/test/rrdbs/db/*.rrd').each { |f| File.unlink(f) }
-    scout(@client.key)
+    scout(@client.key, "-F")
 
     report=YAML.load(@plugin.reload.last_report_raw)
     assert_nil report["foo"], "report shouldn't contain 'foo' field from the override"

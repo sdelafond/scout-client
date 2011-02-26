@@ -53,7 +53,6 @@ module Scout
       @local_plugin_path = File.dirname(history_file) # just put overrides and ad-hoc plugins in same directory as history file.
       @plugin_config_path = File.join(@local_plugin_path, "plugins.properties")
       @plugin_config = load_plugin_configs(@plugin_config_path)
-      @plugin_overrides = load_plugin_overrides # a hash of id (as string) => plugin code
 
       # the block is only passed for install and test, since we split plan retrieval outside the lockfile for run
       if block_given?
@@ -75,22 +74,13 @@ module Scout
       info "Pinging server at #{url}..."
       headers = {"x-scout-tty" => ($stdin.tty? ? 'true' : 'false')}
 
-      override_was_removed=false
-      old_plugins = Array(@history["old_plugins"])
-      # if an override existed last time that doesn't exist this time, we need to fetch the plan again
-      if @history['old_plugins']
-        old_override_ids=old_plugins.map{|p| p['origin'] == "OVERRIDE" ? p['id'] : nil}.compact
-        #override_ids is now a sorted list of plugin ids that were used last time the agent ran
-        override_was_removed = old_override_ids.any?{|id| @plugin_overrides[id.to_s] == nil}
-      end
-
-      if @history["plan_last_modified"] and @history["old_plugins"] and !override_was_removed
+      if @history["plan_last_modified"] and @history["old_plugins"]
         headers["If-Modified-Since"] = @history["plan_last_modified"]
       end
       get(url, "Could not retrieve plan from server.", headers) do |res|
         if res.is_a? Net::HTTPNotModified
           info "Plan not modified. Will reuse saved plan."
-          @plugin_plan = old_plugins
+          @plugin_plan = Array(@history["old_plugins"])
           # Add local plugins to the plan. Note that local plugins are NOT saved to history file
           @plugin_plan += get_local_plugins
           @directives = @history["directives"] || Hash.new
@@ -270,6 +260,8 @@ module Scout
             code_to_run = File.read(override_path)
             debug "Override file found - Using #{code_to_run.size} chars of code in #{override_path} for plugin id=#{plugin_id}"
             plugin['origin'] = "OVERRIDE"
+          else
+            plugin['origin'] = nil
           end
         end
         debug "Compiling plugin..."
@@ -551,26 +543,6 @@ module Scout
         debug "No Plugin Configs at #{path}"
       end
       return temp_configs
-    end
-
-    # Called during initialization. Returns a hash of {plugin_id => code}, read from the
-    # Scout directory. It assumes any ###.rb file is a plugin override
-    def load_plugin_overrides
-      paths=Dir.glob(File.join(@local_plugin_path,"*.rb"))
-      overrides={}
-      paths.each do |p|
-        begin
-          # if the path doesn't match this regex, it was another ruby file in the directory --
-          # probably a local plugin. We effectively skip it.
-          if p =~ /\/([0-9]+)\.rb$/
-            overrides[$1] = File.read(p)
-          end
-#        rescue Exception=>e
-#          info "Couldn't read override file: #{p} -- it's likely a permissions issue. #{e.message}, #{e.backtrace.join('\n')}"
-        end
-      end
-      debug("Loaded #{overrides.size} overrides for plugin ids=#{overrides.keys.join(', ')}") if overrides.any?
-      return overrides
     end
   end
 end
