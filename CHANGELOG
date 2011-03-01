@@ -1,3 +1,7 @@
+== 5.2.2
+
+* More graceful handling of *rare* client_history.yaml corruption
+
 == 5.2.1
 
 * Added private-key based code signing

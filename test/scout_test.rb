@@ -201,6 +201,25 @@ EOS
     assert_equal `hostname`.chomp, @client.reload.hostname
   end
 
+
+  def test_corrupt_history_file
+    File.open(PATH_TO_DATA_FILE,"w") do |f|
+      f.write <<-EOS
+---
+memory: {}
+  497081-Nginx monitoring: {}
+EOS
+
+    end
+    scout(@client.key)
+
+    assert_in_delta Time.now.utc.to_i, @client.reload.last_checkin.to_i, 100, "should have checked in even though history file is corrupt"
+
+    corrupt_history_path=File.join AGENT_DIR, 'history.corrupt'
+    assert File.exist?(corrupt_history_path), "Should have backed up corrupted history file"
+    File.delete(corrupt_history_path) # just cleanup
+  end
+
   ####################
   ### Test-Related ###
   ####################
@@ -363,8 +382,11 @@ mybar=100
   ######################
   
   # Runs the scout command with the given +key+ and +opts+ string (ex: '-F').
-  def scout(key, opts = String.new)
-    `bin/scout #{key} -s http://localhost:4567 -d #{PATH_TO_DATA_FILE} #{opts}`
+  def scout(key, opts = nil, print_output=false)
+    opts = "" unless opts
+    output=`bin/scout #{key} -s http://localhost:4567 -d #{PATH_TO_DATA_FILE} #{opts}`
+    puts output if print_output
+    output
   end
 
   # you can use this, but you have to create the plugin file and clean up afterwards.
