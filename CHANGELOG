@@ -1,3 +1,7 @@
+== 5.3.0
+
+* ping over http instead of https. All plan retrievals and check-ins are still SSL
+
 == 5.2.2
 
 * More graceful handling of *rare* client_history.yaml corruption
