@@ -62,6 +62,26 @@ module Scout
       end
     end
 
+    def refresh?
+      return true if !ping_key
+
+      url=URI.join( @server.sub("https://","http://"), "/clients/#{ping_key}/ping.scout")
+
+      headers = {"x-scout-tty" => ($stdin.tty? ? 'true' : 'false')}
+      if @history["plan_last_modified"] and @history["old_plugins"]
+        headers["If-Modified-Since"] = @history["plan_last_modified"]
+      end
+      get(url, "Could not ping #{url} for refresh info", headers) do |res|
+        if res.is_a?(Net::HTTPNotModified)
+          return false
+        else
+          info "Plan has been modified!"
+          return true
+        end
+      end
+    end
+
+
     #
     # Retrieves the Plugin Plan from the server. This is the list of plugins
     # to execute, along with all options.
@@ -70,23 +90,13 @@ module Scout
     # 1) it sets the @plugin_plan with either A) whatever is in history, B) the results of the /plan retrieval
     # 2) it sets @checkin_to = true IF so directed by the scout server
     def fetch_plan
-      url = urlify(:plan)
-      info "Pinging server at #{url}..."
-      headers = {"x-scout-tty" => ($stdin.tty? ? 'true' : 'false')}
+      if refresh?
 
-      if @history["plan_last_modified"] and @history["old_plugins"]
-        headers["If-Modified-Since"] = @history["plan_last_modified"]
-      end
-      get(url, "Could not retrieve plan from server.", headers) do |res|
-        if res.is_a? Net::HTTPNotModified
-          info "Plan not modified. Will reuse saved plan."
-          @plugin_plan = Array(@history["old_plugins"])
-          # Add local plugins to the plan. Note that local plugins are NOT saved to history file
-          @plugin_plan += get_local_plugins
-          @directives = @history["directives"] || Hash.new
+        url = urlify(:plan)
+        info "Fetching plan from server at #{url}..."
+        headers = {"x-scout-tty" => ($stdin.tty? ? 'true' : 'false')}
 
-        else
-          info "plan has been modified. Will run the new plan now."
+        get(url, "Could not retrieve plan from server.", headers) do |res|
           begin
             body = res.body
             if res["Content-Encoding"] == "gzip" and body and not body.empty?
@@ -144,6 +154,11 @@ module Scout
             exit
           end
         end
+      else
+        info "Plan not modified."
+        @plugin_plan = Array(@history["old_plugins"])
+        @plugin_plan += get_local_plugins
+        @directives = @history["directives"] || Hash.new
       end
     end
 
@@ -172,6 +187,10 @@ module Scout
     # amount of time. When using the --force option the sleep_interval is ignored.
     def sleep_interval
       (@history['directives'] || {})['sleep_interval'].to_f
+    end
+
+    def ping_key
+      (@history['directives'] || {})['ping_key']
     end
 
     # uses values from history and current time to determine if we should checkin at this time

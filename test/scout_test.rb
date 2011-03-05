@@ -71,6 +71,8 @@ class ScoutTest < Test::Unit::TestCase
     scout(@client.key)
     assert_in_delta Time.now.utc.to_i, @client.reload.last_ping.to_i, 100
     assert_in_delta Time.now.utc.to_i, @client.reload.last_checkin.to_i, 100
+
+    assert_equal 'ping_key', history['directives']['ping_key']
   end
   
   def test_should_not_run_if_not_time_to_checkin
@@ -98,7 +100,7 @@ class ScoutTest < Test::Unit::TestCase
   def test_reuse_existing_plan
     test_should_run_first_time
 
-    res=scout(@client.key, '-v')
+    res=scout(@client.key, '-v -ldebug')
     assert_match "Plan not modified",res
   end
 
@@ -408,6 +410,10 @@ mybar=100
       File.unlink(PATH_TO_TEST_PLUGIN)
   end
 
+
+  def history
+    YAML.load(File.read(PATH_TO_DATA_FILE))
+  end
 
   # Establishes AR connection
   def self.connect_ar
