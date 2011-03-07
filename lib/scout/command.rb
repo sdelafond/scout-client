@@ -37,8 +37,8 @@ module Scout
         opts.separator "    ... OR ..."
         opts.separator "    #{program_name} [OPTIONS] install"
         opts.separator "  Troubleshoot:"
-        opts.separator "    #{program_name} troubleshoot"
-        opts.separator "    ... print Scout environment info. Recommend directing output to a file."
+        opts.separator "    #{program_name} [OPTIONS] troubleshoot"
+        opts.separator "    ... print troubleshooting info, or post it back to scoutapp.com."
         opts.separator "  Local plugin testing:"
         opts.separator "    #{program_name} [OPTIONS] test " +
                        "PATH_TO_PLUGIN [PLUGIN_OPTIONS]"
@@ -86,6 +86,16 @@ module Scout
 
         opts.on( "-F", "--force", "Force checkin to Scout server regardless of last checkin time") do |bool|
           options[:force] = bool
+        end
+
+        opts.separator " "
+        opts.separator "Troubleshooting Options:"
+        opts.separator "--------------------------------------------------------------------------"
+        opts.on( "--post", "For use with 'troubleshoot' - post the troubleshooting results back to scoutapp.com") do
+          options[:troubleshoot_post] = true
+        end
+        opts.on( "--no-history", "For use with 'troubleshoot' - don't include the history file contents.") do
+          options[:troubleshoot_no_history] = true
         end
 
         opts.separator " "
