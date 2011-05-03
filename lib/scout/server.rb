@@ -425,6 +425,12 @@ module Scout
         @history = File.open(@history_file) { |file| YAML.load(file) }
       end
 
+      # YAML interprets an empty file as false. This condition catches that
+      if !@history
+        info "There is a problem with the history file at '#{@history_file}'. The root cause is sometimes a full disk. "+
+                 "If '#{@history_file}' exists but is empty, your disk is likely full."
+        exit(1)
+      end
       info "History file loaded."
     end
 
@@ -434,8 +440,8 @@ module Scout
       File.open(@history_file, "w") do |file|
         YAML.dump({"last_runs" => Hash.new, "memory" => Hash.new}, file)
       end
-      info "History file created."      
-    end    
+      info "History file created."
+    end
 
     # Saves the history file to disk.
     def save_history

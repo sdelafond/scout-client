@@ -222,6 +222,13 @@ EOS
     File.delete(corrupt_history_path) # just cleanup
   end
 
+  def test_empty_history_file
+    # #there's no good way of testing this without complicated m
+    # File.open(PATH_TO_DATA_FILE,"w") {|f| f.write "" }
+    # #need to mock Scout::Server create_blank_history to make the file EMPTY for this test to be effective
+    # scout(@client.key,"-v -ldebug",true)
+  end
+
   ####################
   ### Test-Related ###
   ####################
