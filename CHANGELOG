@@ -1,3 +1,7 @@
+== 5.3.2
+
+* New --name="My Server" option to specify server name from the scout command.
+
 == 5.3.1
 
 * Write a log message if a full disk prevents Scout from creating a history file.

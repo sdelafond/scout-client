@@ -120,6 +120,16 @@ class ScoutTest < Test::Unit::TestCase
 
   end
 
+  def test_should_use_name_option
+    scout(@client.key,'--name="My New Server"')
+    assert_equal "My New Server", @client.reload.name
+  end
+
+  def test_should_not_change_name_when_not_provided
+    name=@client.name
+    scout(@client.key)
+    assert_equal name, @client.reload.name
+  end
 
   def test_should_retrieve_new_plan
   end

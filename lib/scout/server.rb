@@ -41,12 +41,13 @@ module Scout
     attr_reader :plugin_config
 
     # Creates a new Scout Server connection.
-    def initialize(server, client_key, history_file, logger = nil)
+    def initialize(server, client_key, history_file, logger = nil, server_name=nil)
       @server       = server
       @client_key   = client_key
       @history_file = history_file
       @history      = Hash.new
       @logger       = logger
+      @server_name  = server_name
       @plugin_plan  = []
       @directives   = {} # take_snapshots, interval, sleep_interval
       @new_plan     = false
@@ -397,7 +398,8 @@ module Scout
                    :errors    => Array.new,
                    :summaries => Array.new,
                    :snapshot  => '',
-                   :config_path => File.expand_path(File.dirname(@history_file))}
+                   :config_path => File.expand_path(File.dirname(@history_file)),
+                   :server_name => @server_name}
     end
 
     def show_checkin(printer = :p)

@@ -65,6 +65,11 @@ module Scout
           options[:level] = level
         end
 
+        opts.on( "-n", "--name NAME", String,
+                 "Optional name to display for this server." ) do |server_name|
+          options[:server_name] = server_name
+        end
+
         opts.separator " "
         opts.separator "Common Options:"
         opts.separator "--------------------------------------------------------------------------"
@@ -146,6 +151,7 @@ module Scout
       @verbose = options[:verbose] || false
       @level   = options[:level]   || "info"
       @force   = options[:force]   || false
+      @server_name    = options[:server_name]
 
       @args    = args
 
@@ -157,7 +163,7 @@ module Scout
 
     end
 
-    attr_reader :server, :history, :config_dir, :log_path
+    attr_reader :server, :history, :config_dir, :log_path, :server_name
 
 
     def verbose?
