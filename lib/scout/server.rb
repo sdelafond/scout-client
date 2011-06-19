@@ -310,7 +310,6 @@ module Scout
           end
         end
 
-
         debug "Loading plugin..."
         if job = Plugin.last_defined.load( last_run, (memory || Hash.new), options)
           info "Plugin loaded."
@@ -336,6 +335,7 @@ module Scout
                                               :subject => "Plugin failed to run",
                                               :body=>"#{$!.class}: #{$!.message}\n#{$!.backtrace.join("\n")}")
           end
+                    
           info "Plugin completed its run."
           
           %w[report alert error summary].each do |type|
@@ -349,6 +349,8 @@ module Scout
               @checkin[plural] << build_report(plugin, fields)
             end
           end
+          
+          report_embedded_options(plugin,code_to_run)
           
           @history["last_runs"].delete(plugin['name'])
           @history["memory"].delete(plugin['name'])
@@ -379,6 +381,22 @@ module Scout
       end
       info "Plugin '#{plugin['name']}' processing complete."
     end
+    
+    # Adds embedded options to the checkin if the plugin is manually installed
+    # on this server.
+    def report_embedded_options(plugin,code)
+      return unless plugin['origin'] and Plugin.has_embedded_options?(code)
+      if  options_yaml = Plugin.extract_options_yaml_from_code(code)
+        options=PluginOptions.from_yaml(options_yaml)
+        if options.error
+          debug "Problem parsing option definition in the plugin code:"
+          debug options_yaml
+        else
+          debug "Sending options to server:"
+          @checkin[:options] << build_report(plugin,options.to_hash)
+        end
+      end
+    end
 
 
     # captures a list of processes running at this moment
@@ -393,13 +411,14 @@ module Scout
 
     # Prepares a check-in data structure to hold Plugin generated data.
     def prepare_checkin
-      @checkin = { :reports   => Array.new,
-                   :alerts    => Array.new,
-                   :errors    => Array.new,
-                   :summaries => Array.new,
-                   :snapshot  => '',
-                   :config_path => File.expand_path(File.dirname(@history_file)),
-                   :server_name => @server_name}
+      @checkin = { :reports          => Array.new,
+                   :alerts           => Array.new,
+                   :errors           => Array.new,
+                   :summaries        => Array.new,
+                   :snapshot         => '',
+                   :config_path      => File.expand_path(File.dirname(@history_file)),
+                   :server_name      => @server_name,
+                   :options          => Array.new}
     end
 
     def show_checkin(printer = :p)
@@ -522,6 +541,10 @@ module Scout
     end
     
     def checkin
+      debug "Checkin Payload:"
+      debug """
+#{@checkin.pretty_inspect}
+      """
       @history['last_checkin'] = Time.now.to_i # might have to save the time of invocation and use here to prevent drift
       io   =  StringIO.new
       gzip =  Zlib::GzipWriter.new(io)

@@ -5,7 +5,7 @@ require 'yaml'
 module Scout
   # a data structure of an individual plugin option
   class PluginOption
-    attr_reader :name, :notes, :default, :advanced, :password, :required
+    attr_reader :name, :notes, :default, :advanced, :password, :required, :hash
     def initialize(name, h)
       @name=name
       @notes=h['notes'] || ''
@@ -14,6 +14,7 @@ module Scout
       @advanced = @attributes.include?('advanced')
       @password = @attributes.include?('password')
       @required = @attributes.include?('required')
+      @hash = h
     end
 
     # convenience -- for nicer syntax
@@ -26,6 +27,10 @@ module Scout
       required_string = required? ? " (required). " : ""
       default_string = default == '' ? '' : " Default: #{default}. " 
       "'#{name}'#{required_string}#{default_string}#{notes}"
+    end
+    
+    def to_hash
+      @hash
     end
   end
 
@@ -43,7 +48,7 @@ module Scout
   #      attributes: required advanced
   class PluginOptions < Array
 
-    attr_accessor :error
+    attr_accessor :error, :hash
 
     # Should be valid YAML, a hash of hashes ... if not, will be caught in the rescue below
     def self.from_yaml(string)
@@ -57,6 +62,7 @@ module Scout
     ensure
       res=PluginOptions.new(options_array)
       res.error=error
+      res.hash = items unless res.error
       return res
     end
 
@@ -74,6 +80,10 @@ module Scout
         res.push "#{i+1}. #{opt.to_s}"
       end
       res.join("\n")
+    end
+    
+    def to_hash
+      hash
     end
 
   end
