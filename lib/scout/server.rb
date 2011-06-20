@@ -392,7 +392,7 @@ module Scout
           debug "Problem parsing option definition in the plugin code:"
           debug options_yaml
         else
-          debug "Sending options to server:"
+          debug "Sending options to server"
           @checkin[:options] << build_report(plugin,options.to_hash)
         end
       end
@@ -541,9 +541,8 @@ module Scout
     end
     
     def checkin
-      debug "Checkin Payload:"
       debug """
-#{pp(@checkin)}
+#{PP.pp(@checkin, '')}
       """
       @history['last_checkin'] = Time.now.to_i # might have to save the time of invocation and use here to prevent drift
       io   =  StringIO.new
