@@ -543,7 +543,7 @@ module Scout
     def checkin
       debug "Checkin Payload:"
       debug """
-#{@checkin.pretty_inspect}
+#{pp(@checkin)}
       """
       @history['last_checkin'] = Time.now.to_i # might have to save the time of invocation and use here to prevent drift
       io   =  StringIO.new
