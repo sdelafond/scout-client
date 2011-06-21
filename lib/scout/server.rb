@@ -103,7 +103,7 @@ module Scout
             if res["Content-Encoding"] == "gzip" and body and not body.empty?
               body = Zlib::GzipReader.new(StringIO.new(body)).read
             end
-
+      
             body_as_hash = JSON.parse(body)
 
             # Ensure all the plugins in the new plan are properly signed. Load the public key for this.
@@ -123,18 +123,20 @@ module Scout
                   info "#{id_and_name} signature doesn't match!"
                   plugin_signature_error=true
                 end
+              # filename is set for local plugins. these don't have signatures.
+              elsif plugin['filename']
+                plugin['code']=nil # should not have any code.
               else
                 info "#{id_and_name} has no signature!"
                 plugin_signature_error=true
               end
             end
 
-
             if(!plugin_signature_error)
               @plugin_plan = temp_plugins
               @directives = body_as_hash["directives"].is_a?(Hash) ? body_as_hash["directives"] : Hash.new
               @history["plan_last_modified"] = res["last-modified"]
-              @history["old_plugins"]        = @plugin_plan.clone # important that the plan is cloned -- we're going to add local plugins, and they shouldn't go into history
+              @history["old_plugins"]        = @plugin_plan
               @history["directives"]         = @directives
 
               info "Plan loaded.  (#{@plugin_plan.size} plugins:  " +
@@ -148,7 +150,7 @@ module Scout
               @directives = @history["directives"] || Hash.new
             end
 
-            # Add local plugins to the plan. Note that local plugins are NOT saved to history file
+            # Add local plugins to the plan.
             @plugin_plan += get_local_plugins
           rescue Exception =>e
             fatal "Plan from server was malformed: #{e.message} - #{e.backtrace}"
@@ -159,6 +161,7 @@ module Scout
         info "Plan not modified."
         @plugin_plan = Array(@history["old_plugins"])
         @plugin_plan += get_local_plugins
+        @plugin_plan.reject! { |p| p['code'].nil? }
         @directives = @history["directives"] || Hash.new
       end
     end
@@ -169,13 +172,20 @@ module Scout
     def get_local_plugins
       local_plugin_paths=Dir.glob(File.join(@local_plugin_path,"[a-zA-Z]*.rb"))
       local_plugin_paths.map do |plugin_path|
+        name    = File.basename(plugin_path)
+        options = if directives = @plugin_plan.find { |plugin| plugin['filename'] == name }
+                     directives['options']
+                  else 
+                    nil
+                  end
         begin
           {
-            'name' => File.basename(plugin_path),
-            'local_filename' => File.basename(plugin_path),
-            'origin' => 'LOCAL',
-            'code' => File.read(plugin_path),
-            'interval' => 0
+            'name'            => name,
+            'local_filename'  => name,
+            'origin'          => 'LOCAL',
+            'code'            => File.read(plugin_path),
+            'interval'        => 0,
+            'options'         => options
           }
         rescue => e
           info "Error trying to read local plugin: #{plugin_path} -- #{e.backtrace.join('\n')}"
