@@ -44,6 +44,8 @@ module Scout
                        "PATH_TO_PLUGIN [PLUGIN_OPTIONS]"
         opts.separator "[PLUGIN_OPTIONS] format: opt1=val1 opt2=val2 opt2=val3 ..."
         opts.separator "Plugin will use internal defaults if options aren't provided."
+        opts.separator "  Sign Code:"
+        opts.separator "    #{program_name} [OPTIONS] sign PATH_TO_PLUGIN"
         opts.separator " "
         opts.separator "Note: This client is meant to be installed and"
         opts.separator "invoked through cron or any other scheduler."

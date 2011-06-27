@@ -1,6 +1,8 @@
-== Master
+== 5.3.3
 
 * Sending embedded options to server for local & plugin overrides.
+* Reading options for local plugins
+* Added support for an account-specific public key (scout_rsa.pub)
 
 == 5.3.2
 
