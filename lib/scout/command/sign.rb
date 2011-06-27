@@ -30,9 +30,19 @@ module Scout
         sig=Base64.encode64(code_signature)
         
         puts "Posting Signature..."
-        res = Net::HTTP.post_form(URI.parse(url),
-                                      {'signature' => sig})
-        puts "ERROR - Unable to post signature" if !res.is_a?(Net::HTTPOK)
+        uri = URI.parse(url)
+        http = Net::HTTP.new(uri.host, uri.port)
+        if uri.is_a?(URI::HTTPS)
+          http.use_ssl = true
+          http.verify_mode = OpenSSL::SSL::VERIFY_NONE
+        end
+        request = Net::HTTP::Post.new(uri.request_uri)
+        request.set_form_data({'signature' => sig})
+        res = http.request(request)
+        if !res.is_a?(Net::HTTPOK)
+          puts "ERROR - Unable to post signature" 
+          return
+        end
         puts "...Success!"
       rescue Timeout::Error
         puts "ERROR - Unable to sign code (Timeout)"
@@ -44,7 +54,14 @@ module Scout
       
       def fetch_code(url)
         puts "Fetching code..."
-        res = Net::HTTP.get_response(URI.parse(url))
+        uri = URI.parse(url)
+        http = Net::HTTP.new(uri.host, uri.port)
+        if uri.is_a?(URI::HTTPS)
+          http.use_ssl = true
+          http.verify_mode = OpenSSL::SSL::VERIFY_NONE
+        end
+        request = Net::HTTP::Get.new(uri.request_uri)
+        res = http.request(request)
         if !res.is_a?(Net::HTTPOK)
           puts "ERROR - Unable to fetch code: #{res.class}."
           return
@@ -55,7 +72,7 @@ module Scout
       def load_private_key
         private_key_path=File.expand_path("~/.scout/scout_rsa")
         if !File.exist?(private_key_path)
-          puts "ERROR - Unable to find the private key at #{private_key_path} for code signing. See #{HELP_URL} for assistance."
+          puts "ERROR - Unable to find the private key at #{private_key_path} for code signing.\nSee #{HELP_URL} for help creating your account's key pair."
           return nil
         else
           begin
@@ -63,7 +80,7 @@ module Scout
           rescue
             puts "Error - Found a private key at #{private_key_path}, but unable to load the key:"
             puts $!.message
-            puts "See #{HELP_URL} for assistance."
+            puts "See #{HELP_URL} for help creating your account's key pair."
             return nil
           end
         end
