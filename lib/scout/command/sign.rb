@@ -34,7 +34,10 @@ module Scout
         http = Net::HTTP.new(uri.host, uri.port)
         if uri.is_a?(URI::HTTPS)
           http.use_ssl = true
-          http.verify_mode = OpenSSL::SSL::VERIFY_NONE
+          http.ca_file     = File.join( File.dirname(__FILE__),
+                                        *%w[.. .. data cacert.pem] )
+          http.verify_mode = OpenSSL::SSL::VERIFY_PEER |
+                             OpenSSL::SSL::VERIFY_FAIL_IF_NO_PEER_CERT        
         end
         request = Net::HTTP::Post.new(uri.request_uri)
         request.set_form_data({'signature' => sig})
@@ -58,7 +61,10 @@ module Scout
         http = Net::HTTP.new(uri.host, uri.port)
         if uri.is_a?(URI::HTTPS)
           http.use_ssl = true
-          http.verify_mode = OpenSSL::SSL::VERIFY_NONE
+          http.ca_file     = File.join( File.dirname(__FILE__),
+                                        *%w[.. .. data cacert.pem] )
+          http.verify_mode = OpenSSL::SSL::VERIFY_PEER |
+                             OpenSSL::SSL::VERIFY_FAIL_IF_NO_PEER_CERT
         end
         request = Net::HTTP::Get.new(uri.request_uri)
         res = http.request(request)
