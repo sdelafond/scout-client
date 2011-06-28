@@ -1,11 +1,15 @@
 #!/usr/bin/env ruby -wKU
 
 require "pp"
-
+require "openssl"
 module Scout
   class Command
     class Sign < Command
-      HELP_URL = "https://scoutapp.com/info/creating_a_plugin#private_plugins"
+      HELP_URL    = "https://scoutapp.com/info/creating_a_plugin#private_plugins"
+      CA_FILE     = File.join( File.dirname(__FILE__),
+                                    *%w[.. .. .. data cacert.pem] )
+      VERIFY_MODE = OpenSSL::SSL::VERIFY_PEER | OpenSSL::SSL::VERIFY_FAIL_IF_NO_PEER_CERT
+      
       def run
         url, *provided_options = @args
         # read the plugin_code from the file specified
@@ -34,10 +38,8 @@ module Scout
         http = Net::HTTP.new(uri.host, uri.port)
         if uri.is_a?(URI::HTTPS)
           http.use_ssl = true
-          http.ca_file     = File.join( File.dirname(__FILE__),
-                                        *%w[.. .. data cacert.pem] )
-          http.verify_mode = OpenSSL::SSL::VERIFY_PEER |
-                             OpenSSL::SSL::VERIFY_FAIL_IF_NO_PEER_CERT        
+          http.ca_file     = CA_FILE
+          http.verify_mode = VERIFY_MODE        
         end
         request = Net::HTTP::Post.new(uri.request_uri)
         request.set_form_data({'signature' => sig})
@@ -61,10 +63,8 @@ module Scout
         http = Net::HTTP.new(uri.host, uri.port)
         if uri.is_a?(URI::HTTPS)
           http.use_ssl = true
-          http.ca_file     = File.join( File.dirname(__FILE__),
-                                        *%w[.. .. data cacert.pem] )
-          http.verify_mode = OpenSSL::SSL::VERIFY_PEER |
-                             OpenSSL::SSL::VERIFY_FAIL_IF_NO_PEER_CERT
+          http.ca_file     = CA_FILE
+          http.verify_mode = VERIFY_MODE
         end
         request = Net::HTTP::Get.new(uri.request_uri)
         res = http.request(request)
