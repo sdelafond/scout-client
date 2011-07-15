@@ -122,7 +122,16 @@ module Scout
         alias_method :add_#{kind}, :#{kind}
       END
     end
-    
+
+    # resets everything except memory. Memory stays intact. This is used for real-time reporting
+    def reset!
+      @data_for_server = { :reports   => [ ],
+                           :alerts    => [ ],
+                           :errors    => [ ],
+                           :summaries => [ ],
+                           :memory  => @memory }
+    end
+
     #
     # Usage:
     # 
