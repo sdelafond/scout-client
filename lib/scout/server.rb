@@ -49,10 +49,12 @@ module Scout
       @logger       = logger
       @server_name  = server_name
       @plugin_plan  = []
+      @plugins_with_signature_errors = []
       @directives   = {} # take_snapshots, interval, sleep_interval
       @new_plan     = false
       @local_plugin_path = File.dirname(history_file) # just put overrides and ad-hoc plugins in same directory as history file.
       @plugin_config_path = File.join(@local_plugin_path, "plugins.properties")
+      @account_public_key_path = File.join(@local_plugin_path, "scout_rsa.pub")
       @plugin_config = load_plugin_configs(@plugin_config_path)
 
       # the block is only passed for install and test, since we split plan retrieval outside the lockfile for run
@@ -64,7 +66,7 @@ module Scout
     end
 
     def refresh?
-      return true if !ping_key
+      return true if !ping_key or account_public_key_changed? # fetch the plan again if the account key is modified/created
 
       url=URI.join( @server.sub("https://","http://"), "/clients/#{ping_key}/ping.scout")
 
@@ -103,52 +105,53 @@ module Scout
             if res["Content-Encoding"] == "gzip" and body and not body.empty?
               body = Zlib::GzipReader.new(StringIO.new(body)).read
             end
-
+      
             body_as_hash = JSON.parse(body)
-
-            # Ensure all the plugins in the new plan are properly signed. Load the public key for this.
-            public_key_text = File.read(File.join( File.dirname(__FILE__), *%w[.. .. data code_id_rsa.pub] ))
-            debug "Loaded public key used for verifying code signatures (#{public_key_text.size} bytes)"
-            code_public_key = OpenSSL::PKey::RSA.new(public_key_text)
-
+            
             temp_plugins=Array(body_as_hash["plugins"])
-            plugin_signature_error = false
-            temp_plugins.each do |plugin|
+            temp_plugins.each_with_index do |plugin,i|
               signature=plugin['signature']
               id_and_name = "#{plugin['id']}-#{plugin['name']}".sub(/\A-/, "")
               if signature
                 code=plugin['code'].gsub(/ +$/,'') # we strip trailing whitespace before calculating signatures. Same here.
                 decoded_signature=Base64.decode64(signature)
-                if !code_public_key.verify(OpenSSL::Digest::SHA1.new, decoded_signature, code)
-                  info "#{id_and_name} signature doesn't match!"
-                  plugin_signature_error=true
+                if !scout_public_key.verify(OpenSSL::Digest::SHA1.new, decoded_signature, code)
+                  if account_public_key
+                    if !account_public_key.verify(OpenSSL::Digest::SHA1.new, decoded_signature, code)
+                      info "#{id_and_name} signature verification failed for both the Scout and account public keys"
+                      plugin['sig_error'] = "The code signature failed verification against both the Scout and account public key. Please ensure the public key installed at #{@account_public_key_path} was generated with the same private key used to sign the plugin."
+                      @plugins_with_signature_errors << temp_plugins.delete_at(i)
+                    end
+                  else
+                    info "#{id_and_name} signature doesn't match!"
+                    plugin['sig_error'] = "The code signature failed verification. Please place your account-specific public key at #{@account_public_key_path}."
+                    @plugins_with_signature_errors << temp_plugins.delete_at(i)
+                  end
                 end
+              # filename is set for local plugins. these don't have signatures.
+              elsif plugin['filename']
+                plugin['code']=nil # should not have any code.
               else
                 info "#{id_and_name} has no signature!"
-                plugin_signature_error=true
+                plugin['sig_error'] = "The code has no signature and cannot be verified."
+                @plugins_with_signature_errors << temp_plugins.delete_at(i)
               end
             end
 
+            @plugin_plan = temp_plugins
+            @directives = body_as_hash["directives"].is_a?(Hash) ? body_as_hash["directives"] : Hash.new
+            @history["plan_last_modified"] = res["last-modified"]
+            @history["old_plugins"]        = @plugin_plan
+            @history["directives"]         = @directives
 
-            if(!plugin_signature_error)
-              @plugin_plan = temp_plugins
-              @directives = body_as_hash["directives"].is_a?(Hash) ? body_as_hash["directives"] : Hash.new
-              @history["plan_last_modified"] = res["last-modified"]
-              @history["old_plugins"]        = @plugin_plan.clone # important that the plan is cloned -- we're going to add local plugins, and they shouldn't go into history
-              @history["directives"]         = @directives
+            info "Plan loaded.  (#{@plugin_plan.size} plugins:  " +
+                 "#{@plugin_plan.map { |p| p['name'] }.join(', ')})" +
+                 ". Directives: #{@directives.to_a.map{|a|  "#{a.first}:#{a.last}"}.join(", ")}"
 
-              info "Plan loaded.  (#{@plugin_plan.size} plugins:  " +
-                   "#{@plugin_plan.map { |p| p['name'] }.join(', ')})" +
-                   ". Directives: #{@directives.to_a.map{|a|  "#{a.first}:#{a.last}"}.join(", ")}"
+            @new_plan = true # used in determination if we should checkin this time or not
 
-              @new_plan = true # used in determination if we should checkin this time or not
-            else
-              info "There was a problem with plugin signatures. Reusing old plan."
-              @plugin_plan = Array(@history["old_plugins"])
-              @directives = @history["directives"] || Hash.new
-            end
 
-            # Add local plugins to the plan. Note that local plugins are NOT saved to history file
+            # Add local plugins to the plan.
             @plugin_plan += get_local_plugins
           rescue Exception =>e
             fatal "Plan from server was malformed: #{e.message} - #{e.backtrace}"
@@ -161,6 +164,7 @@ module Scout
         @plugin_plan += get_local_plugins
         @directives = @history["directives"] || Hash.new
       end
+      @plugin_plan.reject! { |p| p['code'].nil? }
     end
 
     # returns an array of hashes representing local plugins found on the filesystem
@@ -169,13 +173,20 @@ module Scout
     def get_local_plugins
       local_plugin_paths=Dir.glob(File.join(@local_plugin_path,"[a-zA-Z]*.rb"))
       local_plugin_paths.map do |plugin_path|
+        name    = File.basename(plugin_path)
+        options = if directives = @plugin_plan.find { |plugin| plugin['filename'] == name }
+                     directives['options']
+                  else 
+                    nil
+                  end
         begin
           {
-            'name' => File.basename(plugin_path),
-            'local_filename' => File.basename(plugin_path),
-            'origin' => 'LOCAL',
-            'code' => File.read(plugin_path),
-            'interval' => 0
+            'name'            => name,
+            'local_filename'  => name,
+            'origin'          => 'LOCAL',
+            'code'            => File.read(plugin_path),
+            'interval'        => 0,
+            'options'         => options
           }
         rescue => e
           info "Error trying to read local plugin: #{plugin_path} -- #{e.backtrace.join('\n')}"
@@ -192,6 +203,40 @@ module Scout
 
     def ping_key
       (@history['directives'] || {})['ping_key']
+    end
+    
+    # Returns the Scout public key for code verification.
+    def scout_public_key
+      return @scout_public_key if instance_variables.include?('@scout_public_key')
+      public_key_text = File.read(File.join( File.dirname(__FILE__), *%w[.. .. data code_id_rsa.pub] ))
+      debug "Loaded scout-wide public key used for verifying code signatures (#{public_key_text.size} bytes)"
+      @scout_public_key = OpenSSL::PKey::RSA.new(public_key_text)
+    end
+    
+    # Returns the account-specific public key if installed. Otherwise, nil.
+    def account_public_key
+      return @account_public_key if instance_variables.include?('@account_public_key')
+      @account_public_key = nil
+      begin
+        public_key_text = File.read(@account_public_key_path)
+        debug "Loaded account public key used for verifying code signatures (#{public_key_text.size} bytes)"
+        @account_public_key=OpenSSL::PKey::RSA.new(public_key_text)
+      rescue Errno::ENOENT
+        debug "No account private key provided"
+      rescue
+        info "Error loading account public key: #{$!.message}"
+      end
+      return @account_public_key
+    end
+    
+    # This is called in +run_plugins_by_plan+. When the agent starts its next run, it checks to see
+    # if the key has changed. If so, it forces a refresh.
+    def store_account_public_key
+      @history['account_public_key'] = account_public_key.to_s
+    end
+    
+    def account_public_key_changed?
+      @history['account_public_key'] != account_public_key.to_s
     end
 
     # uses values from history and current time to determine if we should checkin at this time
@@ -245,7 +290,18 @@ module Scout
         end
       end
       take_snapshot if @directives['take_snapshots']
+      process_signature_errors
+      store_account_public_key
       checkin
+    end
+    
+    # Reports errors if there are any plugins with invalid signatures and sets a flag
+    # to force a fresh plan on the next run.
+    def process_signature_errors
+      return unless @plugins_with_signature_errors and @plugins_with_signature_errors.any?
+      @plugins_with_signature_errors.each do |plugin|
+        @checkin[:errors] << build_report(plugin,:subject => "Code Signature Error", :body => plugin['sig_error'])
+      end
     end
     
     # 
@@ -292,7 +348,7 @@ module Scout
           info "Plugin compiled."
         rescue Exception
           raise if $!.is_a? SystemExit
-          error "Plugin would not compile: #{$!.message}"
+          error "Plugin #{plugin['path'] || plugin['name']} would not compile: #{$!.message}"
           @checkin[:errors] << build_report(plugin,:subject => "Plugin would not compile", :body=>"#{$!.message}\n\n#{$!.backtrace}")
           return
         end
@@ -309,7 +365,6 @@ module Scout
             end
           end
         end
-
 
         debug "Loading plugin..."
         if job = Plugin.last_defined.load( last_run, (memory || Hash.new), options)
@@ -336,6 +391,7 @@ module Scout
                                               :subject => "Plugin failed to run",
                                               :body=>"#{$!.class}: #{$!.message}\n#{$!.backtrace.join("\n")}")
           end
+                    
           info "Plugin completed its run."
           
           %w[report alert error summary].each do |type|
@@ -349,6 +405,8 @@ module Scout
               @checkin[plural] << build_report(plugin, fields)
             end
           end
+          
+          report_embedded_options(plugin,code_to_run)
           
           @history["last_runs"].delete(plugin['name'])
           @history["memory"].delete(plugin['name'])
@@ -379,6 +437,22 @@ module Scout
       end
       info "Plugin '#{plugin['name']}' processing complete."
     end
+    
+    # Adds embedded options to the checkin if the plugin is manually installed
+    # on this server.
+    def report_embedded_options(plugin,code)
+      return unless plugin['origin'] and Plugin.has_embedded_options?(code)
+      if  options_yaml = Plugin.extract_options_yaml_from_code(code)
+        options=PluginOptions.from_yaml(options_yaml)
+        if options.error
+          debug "Problem parsing option definition in the plugin code:"
+          debug options_yaml
+        else
+          debug "Sending options to server"
+          @checkin[:options] << build_report(plugin,options.to_hash)
+        end
+      end
+    end
 
 
     # captures a list of processes running at this moment
@@ -393,13 +467,14 @@ module Scout
 
     # Prepares a check-in data structure to hold Plugin generated data.
     def prepare_checkin
-      @checkin = { :reports   => Array.new,
-                   :alerts    => Array.new,
-                   :errors    => Array.new,
-                   :summaries => Array.new,
-                   :snapshot  => '',
-                   :config_path => File.expand_path(File.dirname(@history_file)),
-                   :server_name => @server_name}
+      @checkin = { :reports          => Array.new,
+                   :alerts           => Array.new,
+                   :errors           => Array.new,
+                   :summaries        => Array.new,
+                   :snapshot         => '',
+                   :config_path      => File.expand_path(File.dirname(@history_file)),
+                   :server_name      => @server_name,
+                   :options          => Array.new}
     end
 
     def show_checkin(printer = :p)
@@ -522,6 +597,9 @@ module Scout
     end
     
     def checkin
+      debug """
+#{PP.pp(@checkin, '')}
+      """
       @history['last_checkin'] = Time.now.to_i # might have to save the time of invocation and use here to prevent drift
       io   =  StringIO.new
       gzip =  Zlib::GzipWriter.new(io)
