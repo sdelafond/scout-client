@@ -1,3 +1,7 @@
+== Master
+
+* Incorporating sleep interval into Server#time_to_checkin?
+
 == 5.3.3
 
 * Sending embedded options to server for local & plugin overrides.

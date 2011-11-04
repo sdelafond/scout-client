@@ -243,7 +243,7 @@ module Scout
     def time_to_checkin?
       @history['last_checkin'] == nil ||
               @directives['interval'] == nil ||
-              (Time.now.to_i - Time.at(@history['last_checkin']).to_i).abs+15 > @directives['interval'].to_i*60
+              (Time.now.to_i - Time.at(@history['last_checkin']).to_i).abs+15+sleep_interval > @directives['interval'].to_i*60
     rescue
       debug "Failed to calculate time_to_checkin. @history['last_checkin']=#{@history['last_checkin']}. "+
               "@directives['interval']=#{@directives['interval']}. Time.now.to_i=#{Time.now.to_i}"
