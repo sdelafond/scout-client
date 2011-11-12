@@ -1,29 +1,28 @@
 require 'rubygems'
-require 'em-websocket'
 require 'json'
 
 module Scout
-  class Streamer
-    def initialize(history_file, logger = nil)
+  class Streamer < Scout::ServerBase
+    MAX_DURATION = 60*30 # will shut down automatically after this many seconds
+    SLEEP = 1
+
+    def initialize(server, client_key, history_file, logger = nil)
+      @server       = server
+      @client_key   = client_key
       @history_file = history_file
       @history      = Hash.new
       @logger       = logger
 
       @plugins = []
 
-      hostname=`hostname`.chomp
-      $num_connections=0
-      $bundle={}
+      streamer_start_time = Time.now
 
+      hostname=Socket.gethostname
       # load history
       load_history
 
       # get the array of plugins, AKA the plugin plan
       @plugin_plan = Array(@history["old_plugins"])
-
-      #puts "history contains keys: #{@history.keys.join(', ')}"
-      #puts "Options: #{@plugin_plan.first["options"].inspect}"
-      #puts "Code is #{@plugin_plan.first["code"].size} bytes"
 
       # iterate through the plan and compile each plugin. We only compile plugins once at the beginning of the run
       @plugin_plan.each do |plugin|
@@ -35,55 +34,58 @@ module Scout
         end
       end
 
-      # main loop. Generate stats only if one or more clients are connected via websockets
-      Thread.new do
-        while(true) do
-          # only run plugins if there are some connections
-          if $num_connections > 0
-            plugins=[]
-            puts "running!"
-            @plugins.each_with_index do |plugin,i|
-              start_time=Time.now
-              plugin.reset!
-              plugin.run
-              duration=((Time.now-start_time)*1000).to_i
+      # main loop. Continue running until process is sent a TERM signal or we've been running for MAX DURATION
+      while(streamer_start_time+MAX_DURATION > Time.now) do
+        plugins=[]
 
-              plugins << {:duration=>duration,
-                         :fields=>plugin.reports.inject{|memo,hash|memo.merge(hash)},
-                         :name=>@plugin_plan[i]["name"]}
-            end
+        @plugins.each_with_index do |plugin,i|
+          start_time=Time.now
+          plugin.reset!
+          plugin.run
+          duration=((Time.now-start_time)*1000).to_i
 
-            $bundle={:hostname=>hostname,
-                     :num_connections=>$num_connections,
-                     :server_time=>Time.now.strftime("%I:%M:%S %p"),
-                     :num_processes=>`ps -e | wc -l`,
-                     :plugins=>plugins }
-
-          end
-
-          puts "... sleeping @ #{Time.now.strftime("%I:%M:%S %p")}..."
-          sleep(2)
+          plugins << {:duration=>duration,
+                     :fields=>plugin.reports.inject{|memo,hash|memo.merge(hash)},
+                     :name=>@plugin_plan[i]["name"]}
         end
-      end
 
-      # Start the EventMachine loop, waiting for websocket connections.
-      EventMachine.run do
-        EventMachine::WebSocket.start(:host => "0.0.0.0", :port => 5959) do |ws|
-          ws.onopen    {
-            $num_connections +=1
-            puts "switching ON" if $num_connections > 0
-          }
-          ws.onmessage { |msg| ws.send($bundle.to_json) }
-          ws.onclose   {
-            $num_connections = $num_connections -1
-            puts "switching OFF" if $num_connections == 0
-          }
-        end
+        bundle={:hostname=>hostname,
+                 :server_time=>Time.now.strftime("%I:%M:%S %p"),
+                 :num_processes=>`ps -e | wc -l`.chomp.to_i,
+                 :plugins=>plugins }
+
+
+        post_bundle(bundle)
+
+        # debugging
+        #File.open(File.join(File.dirname(@history_file),"out.txt"),"w") do |f|
+        #  f.puts "... sleeping @ #{Time.now.strftime("%I:%M:%S %p")}..."
+        #  f.puts bundle.to_yaml
+        #end
+
+        sleep(SLEEP)
       end
     end
 
     
     private
+
+    def post_bundle(bundle)
+      io   =  StringIO.new
+      gzip =  Zlib::GzipWriter.new(io)
+      gzip << bundle.to_json
+      gzip.close
+      post( urlify(:stream),
+            "Unable to stream to server.",
+            io.string,
+            "Content-Type"     => "application/json",
+            "Content-Encoding" => "gzip" )
+    rescue Exception
+      error "Unable to stream to server."
+      debug $!.class.to_s
+      debug $!.message
+      debug $!.backtrace
+    end
 
     # sets up the @plugins array
     def compile_plugin(plugin)
@@ -142,6 +144,8 @@ module Scout
         super
       end
     end
+
+    def growl(message)`growlnotify -m '#{message.gsub("'","\'")}'`;end
 
   end
 end

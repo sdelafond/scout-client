@@ -5,7 +5,7 @@ require "rake/contrib/rubyforgepublisher"
 require "net/ssh"
 
 require "rubygems"
-require "rubyforge"
+#require "rubyforge"
 
 dir = File.dirname(__FILE__)
 lib = File.join(dir, "lib", "scout.rb")

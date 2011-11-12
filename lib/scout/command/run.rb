@@ -19,6 +19,14 @@ module Scout
         
         @scout.fetch_plan
 
+        log.info "streamer command=#{@scout.streamer_command}"
+        # Spawn streamer if directed to, or stop it. @scout.streamer_command should only be [start|stop]
+        if @scout.streamer_command == "start" || @scout.streamer_command == "stop"
+          stream=Scout::Command::Stream.new(@options, [key, @scout.streamer_command])
+          stream.run
+        end
+
+        # Check in if appropriate
         if @scout.new_plan || @scout.time_to_checkin?  || @force
           if @scout.new_plan
             log.info("Now checking in with new plugin plan") if log

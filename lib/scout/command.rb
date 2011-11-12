@@ -155,6 +155,7 @@ module Scout
       @force   = options[:force]   || false
       @server_name    = options[:server_name]
 
+      @options = options
       @args    = args
 
       # create config dir if necessary

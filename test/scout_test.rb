@@ -75,7 +75,16 @@ class ScoutTest < Test::Unit::TestCase
 
     assert_equal 'ping_key', history['directives']['ping_key']
   end
-  
+
+  # Problem: process detaching doesn't work in test environment, like it does normally
+  #def test_should_spawn_streamer
+  #  test_should_run_first_time
+  #
+  #  assert @client.update_attribute(:streamer_command, "start")
+  #
+  #  scout(@client.key)
+  #end
+
   def test_should_not_run_if_not_time_to_checkin
     # do an initial checkin...should work
     test_should_run_first_time

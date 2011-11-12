@@ -1,29 +1,9 @@
-#!/usr/bin/env ruby -wKU
-
-require "net/https"
-require "uri"
-require "yaml"
-require "timeout"
-require "stringio"
-require "zlib"
-require "socket"
-require "base64"
 
 $LOAD_PATH << File.join(File.dirname(__FILE__), *%w[.. .. vendor json_pure lib])
 require "json"
 
 module Scout
-  class Server
-    # A new class for plugin Timeout errors.
-    class PluginTimeoutError < RuntimeError; end
-    # A new class for API Timeout errors.
-    class APITimeoutError < RuntimeError; end
-    
-    # Headers passed up with all API requests.
-    HTTP_HEADERS = { "Client-Version"  => Scout::VERSION,
-                     "Client-Hostname" => Socket.gethostname,
-                     "Accept-Encoding" => "gzip" }
-    
+  class Server < Scout::ServerBase
     # 
     # A plugin cannot take more than DEFAULT_PLUGIN_TIMEOUT seconds to execute, 
     # otherwise, a timeout error is generated.  This can be overriden by
@@ -39,6 +19,7 @@ module Scout
     attr_reader :new_plan
     attr_reader :directives
     attr_reader :plugin_config
+    attr_reader :streamer_command
 
     # Creates a new Scout Server connection.
     def initialize(server, client_key, history_file, logger = nil, server_name=nil)
@@ -51,6 +32,7 @@ module Scout
       @plugin_plan  = []
       @plugins_with_signature_errors = []
       @directives   = {} # take_snapshots, interval, sleep_interval
+      @streamer_command = nil
       @new_plan     = false
       @local_plugin_path = File.dirname(history_file) # just put overrides and ad-hoc plugins in same directory as history file.
       @plugin_config_path = File.join(@local_plugin_path, "plugins.properties")
@@ -66,6 +48,7 @@ module Scout
     end
 
     def refresh?
+      #info "called refresh: ping_key=#{ping_key}"
       return true if !ping_key or account_public_key_changed? # fetch the plan again if the account key is modified/created
 
       url=URI.join( @server.sub("https://","http://"), "/clients/#{ping_key}/ping.scout")
@@ -75,6 +58,8 @@ module Scout
         headers["If-Modified-Since"] = @history["plan_last_modified"]
       end
       get(url, "Could not ping #{url} for refresh info", headers) do |res|
+        info "inside 'refresh?' #{res.to_hash.to_json}"
+        @streamer_command = res["x-streamer-command"] # usually will be nil, but can be [start|stop]
         if res.is_a?(Net::HTTPNotModified)
           return false
         else
@@ -105,7 +90,6 @@ module Scout
             if res["Content-Encoding"] == "gzip" and body and not body.empty?
               body = Zlib::GzipReader.new(StringIO.new(body)).read
             end
-      
             body_as_hash = JSON.parse(body)
             
             temp_plugins=Array(body_as_hash["plugins"])
@@ -150,7 +134,6 @@ module Scout
 
             @new_plan = true # used in determination if we should checkin this time or not
 
-
             # Add local plugins to the plan.
             @plugin_plan += get_local_plugins
           rescue Exception =>e
@@ -163,6 +146,7 @@ module Scout
         @plugin_plan = Array(@history["old_plugins"])
         @plugin_plan += get_local_plugins
         @directives = @history["directives"] || Hash.new
+
       end
       @plugin_plan.reject! { |p| p['code'].nil? }
     end
@@ -538,64 +522,6 @@ module Scout
       }
     end
 
-    def urlify(url_name, options = Hash.new)
-      return unless @server
-      options.merge!(:client_version => Scout::VERSION)
-      URI.join( @server,
-                "/clients/CLIENT_KEY/#{url_name}.scout".
-                  gsub(/\bCLIENT_KEY\b/, @client_key).
-                  gsub(/\b[A-Z_]+\b/) { |k| options[k.downcase.to_sym] || k } )
-    end
-    
-    def post(url, error, body, headers = Hash.new, &response_handler)
-      return unless url
-      request(url, response_handler, error) do |connection|
-        post = Net::HTTP::Post.new( url.path +
-                                    (url.query ? ('?' + url.query) : ''),
-                                    HTTP_HEADERS.merge(headers) )
-        post.body = body
-        connection.request(post)
-      end
-    end
-
-    def get(url, error, headers = Hash.new, &response_handler)
-      return unless url
-      request(url, response_handler, error) do |connection|
-        connection.get( url.path + (url.query ? ('?' + url.query) : ''),
-                        HTTP_HEADERS.merge(headers) )
-      end
-    end
-    
-    def request(url, response_handler, error, &connector)
-      response           = nil
-      Timeout.timeout(5 * 60, APITimeoutError) do
-        http               = Net::HTTP.new(url.host, url.port)
-        if url.is_a? URI::HTTPS
-          http.use_ssl     = true
-          http.ca_file     = File.join( File.dirname(__FILE__),
-                                        *%w[.. .. data cacert.pem] )
-          http.verify_mode = OpenSSL::SSL::VERIFY_PEER |
-                             OpenSSL::SSL::VERIFY_FAIL_IF_NO_PEER_CERT
-        end
-        response           = no_warnings { http.start(&connector) }
-      end
-      case response
-      when Net::HTTPSuccess, Net::HTTPNotModified
-        response_handler[response] unless response_handler.nil?
-      else
-        error = "Server says: #{response['x-scout-msg']}" if response['x-scout-msg']
-        fatal error
-        raise SystemExit.new(error)
-      end
-    rescue Timeout::Error
-      fatal "Request timed out."
-      exit
-    rescue Exception
-      raise if $!.is_a? SystemExit
-      fatal "An HTTP error occurred:  #{$!.message}"
-      exit
-    end
-    
     def checkin
       debug """
 #{PP.pp(@checkin, '')}
@@ -618,23 +544,6 @@ module Scout
     end
     
     
-    def no_warnings
-      old_verbose = $VERBOSE
-      $VERBOSE    = false
-      yield
-    ensure
-      $VERBOSE = old_verbose
-    end
-    
-    # Forward Logger methods to an active instance, when there is one.
-    def method_missing(meth, *args, &block)
-      if (Logger::SEV_LABEL - %w[ANY]).include? meth.to_s.upcase
-        @logger.send(meth, *args, &block) unless @logger.nil?
-      else
-        super
-      end
-    end
-
     private
 
     # Called during initialization; loads the plugin_configs (local plugin configurations for passwords, etc)
