@@ -6,7 +6,9 @@ module Scout
     MAX_DURATION = 60*30 # will shut down automatically after this many seconds
     SLEEP = 1
 
-    def initialize(server, client_key, history_file, logger = nil)
+    # * history_file is the *path* to the history file
+    # * plugin_ids is an array of integers
+    def initialize(server, client_key, history_file, plugin_ids, logger = nil)
       @server       = server
       @client_key   = client_key
       @history_file = history_file
@@ -27,7 +29,7 @@ module Scout
       # iterate through the plan and compile each plugin. We only compile plugins once at the beginning of the run
       @plugin_plan.each do |plugin|
         begin
-          compile_plugin(plugin)
+          compile_plugin(plugin) # this is what adds to the @plugin array
         rescue Exception
           error("Encountered an error: #{$!.message}")
           puts $!.backtrace.join('\n')
@@ -39,6 +41,8 @@ module Scout
         plugins=[]
 
         @plugins.each_with_index do |plugin,i|
+          # ignore plugins whose ids are not in the plugin_ids array
+          next if !(@plugin_plan[i]['id'] && plugin_ids.include?(@plugin_plan[i]['id'].to_i))
           start_time=Time.now
           plugin.reset!
           plugin.run
@@ -46,7 +50,8 @@ module Scout
 
           plugins << {:duration=>duration,
                      :fields=>plugin.reports.inject{|memo,hash|memo.merge(hash)},
-                     :name=>@plugin_plan[i]["name"]}
+                     :name=>@plugin_plan[i]["name"],
+                     :id=>@plugin_plan[i]["id"]}
         end
 
         bundle={:hostname=>hostname,
@@ -84,7 +89,7 @@ module Scout
       error "Unable to stream to server."
       debug $!.class.to_s
       debug $!.message
-      debug $!.backtrace
+      debug $!.backtrace.join("\n")
     end
 
     # sets up the @plugins array

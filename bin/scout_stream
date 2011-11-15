@@ -1,0 +1,15 @@
+#!/usr/bin/env ruby
+# encoding: utf-8
+
+$VERBOSE = true # -w
+#$KCODE   = "u"  # -Ku
+
+$LOAD_PATH << File.join(File.dirname(__FILE__), *%w[.. lib])
+require "scout"
+require "rubygems"
+require "daemons"
+
+
+Daemons.run("scout")
+
+#18347671-6222-46c2-9cb1-e26484552399 start  -shttp://localhost:4567 -v

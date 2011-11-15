@@ -95,6 +95,12 @@ module Scout
           options[:force] = bool
         end
 
+        opts.on( "-p", "--plugin_ids PLUGINS", String,
+                 "A subset of plugin ids, for streaming mode only - not generally used manually.") do |plugins|
+          options[:plugin_ids] = plugins.split(",").map(&:to_i)
+          puts options[:plugin_ids].inspect
+        end
+
         opts.separator " "
         opts.separator "Troubleshooting Options:"
         opts.separator "--------------------------------------------------------------------------"
