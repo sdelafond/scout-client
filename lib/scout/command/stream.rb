@@ -1,93 +1,50 @@
 #!/usr/bin/env ruby -wKU
 
+require "logger"
+
 module Scout
   class Command
     class Stream < Command
       PID_FILENAME="streamer.pid"
 
       def run
-        @pid_file = File.join(config_dir, PID_FILENAME)
         @key = @args[0]
         daemon_command = @args[1]
         @plugin_ids = @options[:plugin_ids]
 
-        log.info("in Scout::Command::Stream. @args=#{@args.inspect}")
-
         if !@key
-          puts "usage: scout stream [your_scout_key] [start|stop|status]"
+          puts "usage: scout stream [your_scout_key] [start|stop]"
           exit(1)
         end
 
-        if !daemon_command
-          run_directly
-          exit(0)
-        end
+        # server and history methods are inherited from Scout::Command base class
+        streamer_log_file=File.join(File.dirname(history),"scout_streamer.log")
+        streamer_pid_file=File.join(File.dirname(history),"scout_streamer.pid")
 
-        if daemon_command.start_with? "start"
-          if File.exist?(@pid_file)
-            pid=File.read(@pid_file).chomp.to_i
-            terminate(pid)
-            puts "Terminating #{pid} to restart a new instance with update plugin_ids #{@plugin_ids.join(',')}"
+        streamer_control_options = {:log_file => streamer_log_file,
+                                    :pid_file => streamer_pid_file,
+                                    :sync_log => true,
+                                    :working_dir => File.dirname(history)}
+
+        # we use STDOUT for the logger because daemon_spawn directs STDOUT to a log file
+        streamer_control_args = [server, @key, history, @plugin_ids, Logger.new(STDOUT)]
+
+        if daemon_command.include? "start" # can be 'start' or 'restart'
+          if File.exists?(streamer_pid_file)
+            puts "PID file existed. Restarting ..."
+            Scout::StreamerControl.restart(streamer_control_options,streamer_control_args)
+          else
+            puts "Starting ... "
+            Scout::StreamerControl.start(streamer_control_options,streamer_control_args)
           end
-          puts "Forking ... "
-          cmd="#{program_path} stream #{@key} -s#{server} -d#{history} -p#{@plugin_ids.join(',')}"
-          log.info "about to run cmd: #{cmd}"
-          streamer = fork do
-            exec cmd
-          end
-          Process.detach(streamer)
-          puts "forked and detached PID: #{streamer}"
         elsif daemon_command == "stop"
-          if File.exist?(@pid_file)
-            pid=File.read(@pid_file).chomp.to_i
-            terminate(pid)
-            puts "Done terminating #{pid}"
-          else
-            puts "Can't stop streamer -- NO PID exists at #{@pid_file}"
-          end
-        elsif daemon_command == "status"
-          if File.exist?(@pid_file)
-            file=File.new(@pid_file)
-            pid=file.read.chomp
-            puts "streamer running since #{file.ctime} with pid #{pid}"
-          else
-            puts "streamer not running"
-          end
+          puts "Stopping ..."
+          Scout::StreamerControl.stop(streamer_control_options,[])
         else
-          puts "usage: scout stream [your_scout_key] [start|stop|status]"
+          puts "usage: scout stream [your_scout_key] [start|stop]"
           exit(1)
         end
       end
-
-      private
-
-      def run_directly
-        File.open(@pid_file, File::CREAT|File::EXCL|File::WRONLY) do |pid|
-          pid.puts $$
-        end
-        at_exit do
-          begin
-            File.unlink(@pid_file)
-          rescue
-            log.error "Unable to unlink pid file:  #{$!.message}" if log
-          end
-        end
-
-        @scout = Scout::Streamer.new(server, @key, history, @plugin_ids, log)
-      end
-
-      def terminate(pid)
-        log.info "Terminating: #{pid}"
-        res=Process.kill("TERM",pid)
-        begin
-          Process.wait(pid)
-        rescue Errno::ECHILD
-          # nullop - most likely, the process was killed before we called Process.wait
-        end
-      end
-
-      def growl(message)`growlnotify -m '#{message.gsub("'","\'")}'`;end
-
     end
   end
 end

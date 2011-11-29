@@ -17,6 +17,8 @@ module Scout
 
       @plugins = []
 
+      debug "plugin_ids = #{plugin_ids.inspect}"
+
       streamer_start_time = Time.now
 
       hostname=Socket.gethostname
@@ -36,8 +38,8 @@ module Scout
         end
       end
 
-      # main loop. Continue running until process is sent a TERM signal or we've been running for MAX DURATION
-      while(streamer_start_time+MAX_DURATION > Time.now) do
+      # main loop. Continue running until global $continue_streaming is set to false OR we've been running for MAX DURATION
+      while(streamer_start_time+MAX_DURATION > Time.now && $continue_streaming) do
         plugins=[]
 
         @plugins.each_with_index do |plugin,i|
@@ -60,13 +62,15 @@ module Scout
                  :plugins=>plugins }
 
 
-        post_bundle(bundle)
-
-        # debugging
-        #File.open(File.join(File.dirname(@history_file),"out.txt"),"w") do |f|
-        #  f.puts "... sleeping @ #{Time.now.strftime("%I:%M:%S %p")}..."
-        #  f.puts bundle.to_yaml
-        #end
+        if true
+          post_bundle(bundle)
+        else
+          # debugging
+          File.open(File.join(File.dirname(@history_file),"out.txt"),"w") do |f|
+            f.puts "... sleeping @ #{Time.now.strftime("%I:%M:%S %p")}..."
+            f.puts bundle.to_yaml
+          end
+        end
 
         sleep(SLEEP)
       end
@@ -76,15 +80,10 @@ module Scout
     private
 
     def post_bundle(bundle)
-      io   =  StringIO.new
-      gzip =  Zlib::GzipWriter.new(io)
-      gzip << bundle.to_json
-      gzip.close
       post( urlify(:stream),
             "Unable to stream to server.",
-            io.string,
-            "Content-Type"     => "application/json",
-            "Content-Encoding" => "gzip" )
+            bundle.to_json,
+            "Content-Type"     => "application/json")
     rescue Exception
       error "Unable to stream to server."
       debug $!.class.to_s
@@ -94,7 +93,8 @@ module Scout
 
     # sets up the @plugins array
     def compile_plugin(plugin)
-      code_to_run=plugin['code']
+      # todo: account for local plugins - they need to be loaded from their file
+      code_to_run=plugin['code'] || ""
       if ["class MPstat","class ApacheLoad"].any?{|snippit| code_to_run.include?(snippit) }
         code_to_run="class DummyPlugin < Scout::Plugin;def build_report;end;end"
         plugin['name']=plugin['name']+" (disabled)"
@@ -111,7 +111,7 @@ module Scout
         eval( code_to_run,
               TOPLEVEL_BINDING,
               plugin['path'] || plugin['name'] )
-        info "Plugin compiled. It's a #{Plugin.last_defined}"
+        info "Plugin compiled. It's a #{Plugin.last_defined}. id = #{plugin_id}"
         @plugins << Plugin.last_defined.load(last_run, (memory || Hash.new), options)
         # turn RailsRequest#analyze method into a null-op -- we don't want summaries being generated
         if @plugins.last.class.name=="RailsRequests"

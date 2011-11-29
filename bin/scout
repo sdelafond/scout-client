@@ -5,6 +5,7 @@ $VERBOSE = true # -w
 #$KCODE   = "u"  # -Ku
 
 $LOAD_PATH << File.join(File.dirname(__FILE__), *%w[.. lib])
+
 require "scout"
 
 Scout::Command.dispatch(ARGV)
