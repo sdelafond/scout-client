@@ -100,6 +100,11 @@ module Scout
           options[:plugin_ids] = plugins.split(",").map(&:to_i)
         end
 
+        opts.on( "-k", "--streaming_key KEY", String,
+                 "for streaming mode only - not generally used manually.") do |streaming_key|
+          options[:streaming_key] = streaming_key
+        end
+
         opts.separator " "
         opts.separator "Troubleshooting Options:"
         opts.separator "--------------------------------------------------------------------------"

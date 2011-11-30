@@ -1,7 +1,7 @@
 #!/usr/bin/env ruby -wKU
 
 module Scout
-  VERSION = "5.4.1".freeze
+  VERSION = "5.4.2".freeze
 end
 
 require "scout/command"

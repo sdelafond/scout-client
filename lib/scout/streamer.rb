@@ -8,7 +8,7 @@ module Scout
 
     # * history_file is the *path* to the history file
     # * plugin_ids is an array of integers
-    def initialize(server, client_key, history_file, plugin_ids, logger = nil)
+    def initialize(server, client_key, history_file, plugin_ids, streaming_key, logger = nil)
       @server       = server
       @client_key   = client_key
       @history_file = history_file
@@ -17,7 +17,12 @@ module Scout
 
       @plugins = []
 
+      Pusher.app_id = '11495'
+      Pusher.key = 'a95aa7293cd158100246'
+      Pusher.secret = '9c13ccfe325fe3ae682d'
+
       debug "plugin_ids = #{plugin_ids.inspect}"
+      debug "streaming_key = #{streaming_key}"
 
       streamer_start_time = Time.now
 
@@ -63,7 +68,13 @@ module Scout
 
 
         if true
-          post_bundle(bundle)
+          begin
+            Pusher[streaming_key].trigger!('server_data', bundle)
+          rescue Pusher::Error => e
+            # (Pusher::AuthenticationError, Pusher::HTTPError, or Pusher::Error)
+            puts "Error!!! #{e.message}"
+          end
+          #post_bundle(bundle)
         else
           # debugging
           File.open(File.join(File.dirname(@history_file),"out.txt"),"w") do |f|
@@ -79,17 +90,17 @@ module Scout
     
     private
 
-    def post_bundle(bundle)
-      post( urlify(:stream),
-            "Unable to stream to server.",
-            bundle.to_json,
-            "Content-Type"     => "application/json")
-    rescue Exception
-      error "Unable to stream to server."
-      debug $!.class.to_s
-      debug $!.message
-      debug $!.backtrace.join("\n")
-    end
+    #def post_bundle(bundle)
+    #  post( urlify(:stream),
+    #        "Unable to stream to server.",
+    #        bundle.to_json,
+    #        "Content-Type"     => "application/json")
+    #rescue Exception
+    #  error "Unable to stream to server."
+    #  debug $!.class.to_s
+    #  debug $!.message
+    #  debug $!.backtrace.join("\n")
+    #end
 
     # sets up the @plugins array
     def compile_plugin(plugin)

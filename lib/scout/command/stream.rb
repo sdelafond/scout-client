@@ -27,7 +27,7 @@ module Scout
                                     :working_dir => File.dirname(history)}
 
         # we use STDOUT for the logger because daemon_spawn directs STDOUT to a log file
-        streamer_control_args = [server, @key, history, @plugin_ids, Logger.new(STDOUT)]
+        streamer_control_args = [server, @key, history, @plugin_ids, @options[:streaming_key],Logger.new(STDOUT)]
 
         if daemon_command.include? "start" # can be 'start' or 'restart'
           if File.exists?(streamer_pid_file)

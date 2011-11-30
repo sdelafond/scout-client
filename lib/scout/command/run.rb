@@ -22,9 +22,11 @@ module Scout
         log.info "streamer command=#{@scout.streamer_command}"
         # Spawn streamer if directed to, or stop it. @scout.streamer_command should only be [start|stop]
         if @scout.streamer_command.is_a?(String) && @scout.streamer_command.start_with?("start") || @scout.streamer_command == "stop"
-          plugin_ids = @scout.streamer_command.split(",").map(&:to_i)
-          plugin_ids.shift # gets rid of the "start"
-          stream=Scout::Command::Stream.new(@options.merge(:plugin_ids=>plugin_ids), [key, @scout.streamer_command])
+          tokens = @scout.streamer_command.split(",")
+          tokens.shift # gets rid of the "start"
+          streaming_key=tokens.shift
+          plugin_ids = tokens.map(&:to_i)
+          stream=Scout::Command::Stream.new(@options.merge(:streaming_key=>streaming_key,:plugin_ids=>plugin_ids), [key, @scout.streamer_command])
           stream.run
         end
 

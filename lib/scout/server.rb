@@ -1,6 +1,10 @@
 
-$LOAD_PATH << File.join(File.dirname(__FILE__), *%w[.. .. vendor json_pure lib])
+Dir.glob(File.join(File.dirname(__FILE__), *%w[.. .. vendor *])).each do |dir|
+  $LOAD_PATH << File.join(dir,"lib")
+end
+
 require "json"
+require "pusher"
 
 module Scout
   class Server < Scout::ServerBase
