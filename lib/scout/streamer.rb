@@ -48,7 +48,7 @@ module Scout
         plugins=[]
 
         @plugins.each_with_index do |plugin,i|
-          # ignore plugins whose ids are not in the plugin_ids array
+          # ignore plugins whose ids are not in the plugin_ids array -- this also ignores local plugins
           next if !(@plugin_plan[i]['id'] && plugin_ids.include?(@plugin_plan[i]['id'].to_i))
           start_time=Time.now
           plugin.reset!
@@ -66,18 +66,16 @@ module Scout
                  :num_processes=>`ps -e | wc -l`.chomp.to_i,
                  :plugins=>plugins }
 
+        begin
+          Pusher[streaming_key].trigger!('server_data', bundle)
+        rescue Pusher::Error => e
+          # (Pusher::AuthenticationError, Pusher::HTTPError, or Pusher::Error)
+          error "Error pushing data: #{e.message}"
+        end
 
-        if true
-          begin
-            Pusher[streaming_key].trigger!('server_data', bundle)
-          rescue Pusher::Error => e
-            # (Pusher::AuthenticationError, Pusher::HTTPError, or Pusher::Error)
-            puts "Error!!! #{e.message}"
-          end
-          #post_bundle(bundle)
-        else
+        if false
           # debugging
-          File.open(File.join(File.dirname(@history_file),"out.txt"),"w") do |f|
+          File.open(File.join(File.dirname(@history_file),"debug.txt"),"w") do |f|
             f.puts "... sleeping @ #{Time.now.strftime("%I:%M:%S %p")}..."
             f.puts bundle.to_yaml
           end
@@ -104,14 +102,18 @@ module Scout
 
     # sets up the @plugins array
     def compile_plugin(plugin)
-      # todo: account for local plugins - they need to be loaded from their file
-      code_to_run=plugin['code'] || ""
+      plugin_id = plugin['id']
+      local_path = File.join(File.dirname(@history_file), "#{plugin_id}.rb")
+      if File.exist?(local_path)
+        code_to_run = File.read(local_path)
+      else
+        code_to_run=plugin['code'] || ""
+      end
+
       if ["class MPstat","class ApacheLoad"].any?{|snippit| code_to_run.include?(snippit) }
         code_to_run="class DummyPlugin < Scout::Plugin;def build_report;end;end"
-        plugin['name']=plugin['name']+" (disabled)"
       end
       id_and_name = "#{plugin['id']}-#{plugin['name']}".sub(/\A-/, "")
-      plugin_id = plugin['id']
       last_run    = @history["last_runs"][id_and_name] ||
                     @history["last_runs"][plugin['name']]
       memory      = @history["memory"][id_and_name] ||
@@ -122,7 +124,7 @@ module Scout
         eval( code_to_run,
               TOPLEVEL_BINDING,
               plugin['path'] || plugin['name'] )
-        info "Plugin compiled. It's a #{Plugin.last_defined}. id = #{plugin_id}"
+        info "Compiled a #{Plugin.last_defined} plugin, id = #{plugin_id}"
         @plugins << Plugin.last_defined.load(last_run, (memory || Hash.new), options)
         # turn RailsRequest#analyze method into a null-op -- we don't want summaries being generated
         if @plugins.last.class.name=="RailsRequests"
