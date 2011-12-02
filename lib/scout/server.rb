@@ -565,11 +565,17 @@ module Scout
                         HTTP_HEADERS.merge(headers) )
       end
     end
-    
+
     def request(url, response_handler, error, &connector)
       response           = nil
       Timeout.timeout(5 * 60, APITimeoutError) do
-        http               = Net::HTTP.new(url.host, url.port)
+        if p=ENV['http_proxy']
+          info("Using HTTP proxy from ENV['http_proxy']=#{p}")
+          proxy = URI.parse(p)
+          http  = Net::HTTP.proxy(proxy.host,proxy.port).new(url.host, url.port)
+        else
+          http  = Net::HTTP.new(url.host, url.port)
+        end
         if url.is_a? URI::HTTPS
           http.use_ssl     = true
           http.ca_file     = File.join( File.dirname(__FILE__),

@@ -1,6 +1,9 @@
 == Master
 
+== 5.3.4
+
 * Incorporating sleep interval into Server#time_to_checkin?
+* Added proxy support via http_proxy environment variable
 
 == 5.3.3
 
