@@ -63,7 +63,7 @@ module Scout
       end
       get(url, "Could not ping #{url} for refresh info", headers) do |res|
         info "inside 'refresh?' #{res.to_hash.to_json}"
-        @streamer_command = res["x-streamer-command"] # usually will be nil, but can be [start,1234,5678|stop]
+        @streamer_command = res["x-streamer-command"] # usually will be nil, but can be [start,abcd,1234,5678|stop]
         if res.is_a?(Net::HTTPNotModified)
           return false
         else

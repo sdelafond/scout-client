@@ -46,7 +46,6 @@ module Scout
       # main loop. Continue running until global $continue_streaming is set to false OR we've been running for MAX DURATION
       while(streamer_start_time+MAX_DURATION > Time.now && $continue_streaming) do
         plugins=[]
-
         @plugins.each_with_index do |plugin,i|
           # ignore plugins whose ids are not in the plugin_ids array -- this also ignores local plugins
           next if !(@plugin_plan[i]['id'] && plugin_ids.include?(@plugin_plan[i]['id'].to_i))
@@ -103,6 +102,8 @@ module Scout
     # sets up the @plugins array
     def compile_plugin(plugin)
       plugin_id = plugin['id']
+
+      # take care of plugin overrides
       local_path = File.join(File.dirname(@history_file), "#{plugin_id}.rb")
       if File.exist?(local_path)
         code_to_run = File.read(local_path)
@@ -110,9 +111,6 @@ module Scout
         code_to_run=plugin['code'] || ""
       end
 
-      if ["class MPstat","class ApacheLoad"].any?{|snippit| code_to_run.include?(snippit) }
-        code_to_run="class DummyPlugin < Scout::Plugin;def build_report;end;end"
-      end
       id_and_name = "#{plugin['id']}-#{plugin['name']}".sub(/\A-/, "")
       last_run    = @history["last_runs"][id_and_name] ||
                     @history["last_runs"][plugin['name']]
@@ -120,35 +118,30 @@ module Scout
                     @history["memory"][plugin['name']]
       options=(plugin['options'] || Hash.new)
       options.merge!(:tuner_days=>"")
+      code_class=Plugin.extract_code_class(code_to_run)
       begin
-        eval( code_to_run,
-              TOPLEVEL_BINDING,
-              plugin['path'] || plugin['name'] )
-        info "Compiled a #{Plugin.last_defined} plugin, id = #{plugin_id}"
-        @plugins << Plugin.last_defined.load(last_run, (memory || Hash.new), options)
-        # turn RailsRequest#analyze method into a null-op -- we don't want summaries being generated
-        if @plugins.last.class.name=="RailsRequests"
-          p=@plugins.last
-          def p.analyze; end
-        end
+        eval(code_to_run, TOPLEVEL_BINDING, plugin['path'] || plugin['name'] )
+        klass=Plugin.const_get(code_class)
+        info "Added a #{klass.name} plugin, id = #{plugin_id}"
+        @plugins << klass.load(last_run, (memory || Hash.new), options)
+
+        # turn certain methods into null-ops, so summaries aren't generated. Note that this is ad-hoc, and not future-proof.
+        if klass.name=="RailsRequests"; def klass.analyze;end;end
+        if klass.name=="ApacheAnalyzer"; def klass.generate_log_analysis;end;end
+
       rescue Exception
-        raise if $!.is_a? SystemExit
         error "Plugin would not compile: #{$!.message}"
-        return
       end
     end
 
 
     def load_history
-      if !File.exist?(@history_file) || File.zero?(@history_file)
-        create_blank_history
-      end
-      debug "Loading history file..."
-      contents=File.read(@history_file)
       begin
+        debug "Loading history file..."
+        contents=File.read(@history_file)
         @history = YAML.load(contents)
       rescue => e
-        info "Couldn't parse the history file. Exiting"
+        info "Couldn't load or parse the history file at #{@history_file}. Exiting."
         exit(1)
       end
       info "History file loaded."
