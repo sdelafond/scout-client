@@ -3,12 +3,12 @@ module Scout
 
     # args are: server, key, history, plugin_ids, streaming_key, log
     def start(args)
-      puts "StreamerControl#start PID=#{pid}"
+      #puts "StreamerControl#start PID=#{pid}"
       server,key,history,plugin_ids,streaming_key,log = args
-      $continue_streaming = true #
+      $continue_streaming = true #needed for streamer to loop
 
       @scout = Scout::Streamer.new(server, key, history, plugin_ids, streaming_key, log)
-      puts "StreamerControl - done. Removing pid_file at #{pid_file} containing PID=#{pid}"
+      # puts "StreamerControl - done. Removing pid_file at #{pid_file} containing PID=#{pid}"
       File.unlink(pid_file) if File.exists?(pid_file) # a better way of doing this?
     end
 
