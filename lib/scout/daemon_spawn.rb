@@ -52,7 +52,7 @@ module DaemonSpawn
       trap("TERM") {daemon.stop; exit}
       daemon.start(args)
     end
-    puts "#{daemon.app_name} started."
+    puts("#{daemon.app_name} started.") if $stdin.tty?
   end
 
   def self.stop(daemon) #:nodoc:

@@ -31,14 +31,14 @@ module Scout
 
         if daemon_command.include? "start" # can be 'start' or 'restart'
           if File.exists?(streamer_pid_file)
-            puts "PID file existed. Restarting ..."
+            puts("PID file existed. Restarting ...") if $stdin.tty?
             Scout::StreamerControl.restart(streamer_control_options,streamer_control_args)
           else
-            puts "Starting ... "
+            puts("Starting ... ") if $stdin.tty?
             Scout::StreamerControl.start(streamer_control_options,streamer_control_args)
           end
         elsif daemon_command == "stop"
-          puts "Stopping ..."
+          puts("Stopping ...") if $stdin.tty?
           Scout::StreamerControl.stop(streamer_control_options,[])
         else
           puts "usage: scout stream [your_scout_key] [start|stop]"
