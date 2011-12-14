@@ -5,6 +5,7 @@
 #
 $VERBOSE=nil
 $LOAD_PATH << File.expand_path( File.dirname(__FILE__) + '/../lib' )
+$LOAD_PATH << File.expand_path( File.dirname(__FILE__) + '/..' )
 require 'test/unit'
 require 'lib/scout'
 require "pty"
@@ -392,65 +393,57 @@ mybar=100
     File.open(local_path,"w"){|f|f.write(code)}
 
     scout(@client.key)
-
     assert_equal plugin_count+1, @client.reload.plugins.count, "there should be one additional plugin records -- created from the local plugin"
-
     File.delete(local_path)
   end
 
+  # Streamer tests
 
+  # includes two plugins of the same class
   def test_streamer_plugin_compilation
-    # redefine the trigger! method, so the streamer doesn't loop indefinitely. We can't just mock it, because
-    # we need to set the $continue_streaming=false
-    Pusher::Channel.module_eval do
-      alias orig_trigger! trigger!
-      def trigger!(event_name, data, socket=nil)
-        $streamer_data = data
-        $continue_streaming=false
-      end
-    end
-    plugins=[]
-    acl_code="class AclPlugin < Scout::Plugin;def build_report; report(:value=>1);end;end"
-    acl_sig=<<EOS
-QT/IYlR+/3h0YwBAHJeFz4HRFlisocVGorafNYJSYJC5RaUKqxu3dM+bOU4P
-mQ5SmAt1mtXD5BJy2MeHam7Y8HAiWJbDBB318feZrC6xI2amu1b1/YMUyY8y
-fMXS9z8J+ABsFIyV26av1KLxU1EHxi9iKxPwMg0HKJhTBStX4uIyncr/+ZSS
-QKywEwPIPihFFyh9B2Z5WVSHtGcZG9CXDa20hrbQoNutOTniTkr00evBItYL
-FN4L0F0ApIjTTkZW2vjzNR59j8HfZ7zrPfy33VhJkyAS0o9nQt5v0J5wKHj1
-c3egj/Ffn/zSWZ1cTf3VSpfrGKUAlyB9KphZeYv2Og==
-EOS
-    plugins << create_plugin(@client, "AclPlugin_1", acl_code, acl_sig)
+    mock_pusher do
+      plugins=[]
+      plugins << create_plugin(@client, "AclPlugin_1", PLUGIN_FIXTURES[:acl][:code], PLUGIN_FIXTURES[:acl][:sig])
+      plugins << create_plugin(@client, "XYZ Plugin",  PLUGIN_FIXTURES[:xyz][:code], PLUGIN_FIXTURES[:xyz][:sig])
+      plugins << create_plugin(@client, "AclPlugin_2", PLUGIN_FIXTURES[:acl][:code], PLUGIN_FIXTURES[:acl][:sig])
 
-    code="class XYZPlugin < Scout::Plugin;def build_report; report(:value=>2);end;end"
-    sig=<<EOS
-6cNcDCM2GWcoT1Iqri+XFPgAiMxQaf0b8kOi4KKafNVD94cPkcy6OknNeQUM
-v6GYcfGCAsiZvnjl/2wsqjvrAl/zyuSW/s5YLsjxca1LEvhkyxbpnDGuj32k
-3IuWKQ6JuEbmPXPP1aFsosOm7dbTCrjEn1fDQWAzmfCwznHV3MiqzvPD2D9g
-7gtxXcblNP6hm7A6AlBzP0hwYORR//gpLLGtmT5ewltHUj9aSUY0GQle3lvH
-/uzBDoV1x6mEYR2jPO5QQxL3BvTBvpC06ec8M/ZWbO9IwA7/DOs+vYfngxlp
-jbtpAK9QCaAalKy/Z29os/7aViHy9z9IVCpC/z3MDA==
-EOS
-    plugins << create_plugin(@client, "XYZ Plugin", code, sig)
+      scout(@client.key) # to write the initial history file. Sinatra MUST be running
+      $continue_streaming = true # so the streamer will run once
+      streamer=Scout::Streamer.new("http://none", "bogus_client_key", PATH_TO_DATA_FILE, [@client.plugins.first.id]+plugins.map(&:id), "bogus_streaming_key",nil) # for debugging, make last arg Logger.new(STDOUT)
+      res = $streamer_data # $streamer_data via the mock_streamer call
 
-    plugins << create_plugin(@client, "AclPlugin_2", acl_code, acl_sig)
-
-    scout(@client.key) # to write the initial history file. Sinatra MUST be running
-    $continue_streaming = true # so the streamer will run once
-    streamer=Scout::Streamer.new("http://none", "bogus_client_key", PATH_TO_DATA_FILE, [@client.plugins.first.id]+plugins.map(&:id), "bogus_streaming_key",nil) # for debugging, make last arg Logger.new(STDOUT)
-    res = $streamer_data # $streamer_data is set in the Channel.trigger! method we temporarily defined above
-
-    assert res.is_a?(Hash)
-    assert res[:plugins].is_a?(Array)
-    assert_equal 4, res[:plugins].size
-    assert_equal 2, res[:plugins][0][:fields][:load]
-    assert_equal 1, res[:plugins][1][:fields][:value]
-    assert_equal 2, res[:plugins][2][:fields][:value]
-    assert_equal 1, res[:plugins][3][:fields][:value]
-
-    Pusher::Channel.module_eval do
-      alias trigger! orig_trigger!
-    end
+      assert res.is_a?(Hash)
+      assert res[:plugins].is_a?(Array)
+      assert_equal 4, res[:plugins].size
+      assert_equal 2, res[:plugins][0][:fields][:load]
+      assert_equal 1, res[:plugins][1][:fields][:value]
+      assert_equal 2, res[:plugins][2][:fields][:value]
+      assert_equal 1, res[:plugins][3][:fields][:value]
+    end # end of mock_pusher
   end
+
+  def test_streamer_with_local_plugin
+    local_path=File.join(AGENT_DIR,"my_local_plugin.rb")
+    code=<<-EOC
+      class LocalPluginTest < Scout::Plugin
+        def build_report; report(:answer=>42);end
+      end
+    EOC
+    File.open(local_path,"w"){|f|f.write(code)}
+    scout(@client.key)
+
+    mock_pusher do
+      $continue_streaming = true # so the streamer will run once
+      streamer=Scout::Streamer.new("http://none", "bogus_client_key", PATH_TO_DATA_FILE, [@client.plugins.first.id], "bogus_streaming_key",nil) # for debugging, make last arg Logger.new(STDOUT)
+      res = $streamer_data # $streamer_data via the mock_streamer call
+
+      assert res.is_a?(Hash)
+      assert res[:plugins].is_a?(Array)
+      assert_equal 1, res[:plugins].size
+      assert_equal 2, res[:plugins][0][:fields][:load]
+    end # end of mock_pusher
+  end
+
 
   # test streamer starting and stopping
   def test_streamer_process_management
@@ -460,13 +453,14 @@ EOS
 
     assert !File.exist?(streamer_pid_file)
 
-    assert @client.update_attribute(:streamer_command, "start,abc,1,3")
+    assert @client.update_attribute(:streamer_command, "start,A0000000000123,1,3")
     scout(@client.key)
     assert File.exist?(streamer_pid_file)
     process_id = File.read(streamer_pid_file).to_i
     assert process_running?(process_id)
     assert_nil @client.reload.streamer_command
 
+    sleep 2
     assert @client.update_attribute(:streamer_command, "stop")
     scout(@client.key)
     assert !File.exist?(streamer_pid_file)
@@ -578,7 +572,7 @@ EOS
     end    
   end
 
-  # see scout's rake plugin:sign task to create the signatre
+  # see scout's rake plugin:sign task to create the signature
   def create_plugin(client,name, code, signature)
     p=client.plugins.create(:name=>name)
     PluginMeta.create(:plugin=>p)
@@ -590,6 +584,49 @@ EOS
     puts "There was a problem creating '#{name}' plugin: #{p.errors.inspect}" if p.errors.any?
     p
   end
+
+  # this with a block to mock the pusher call. You can access the streamer data through the global $streamer_data
+  # Must be called with a code block
+  def mock_pusher
+    # redefine the trigger! method, so the streamer doesn't loop indefinitely. We can't just mock it, because
+    # we need to set the $continue_streaming=false
+    Pusher::Channel.module_eval do
+      alias orig_trigger! trigger!
+      def trigger!(event_name, data, socket=nil)
+        $streamer_data = data
+        $continue_streaming=false
+      end
+    end
+    yield # must be called with a block
+    Pusher::Channel.module_eval do
+      alias trigger! orig_trigger!
+    end
+  end
+
+
+  # Use these to create plugins as needed
+  PLUGIN_FIXTURES={
+      :acl=>{:code=>"class AclPlugin < Scout::Plugin;def build_report; report(:value=>1);end;end",
+             :sig=><<EOS
+QT/IYlR+/3h0YwBAHJeFz4HRFlisocVGorafNYJSYJC5RaUKqxu3dM+bOU4P
+mQ5SmAt1mtXD5BJy2MeHam7Y8HAiWJbDBB318feZrC6xI2amu1b1/YMUyY8y
+fMXS9z8J+ABsFIyV26av1KLxU1EHxi9iKxPwMg0HKJhTBStX4uIyncr/+ZSS
+QKywEwPIPihFFyh9B2Z5WVSHtGcZG9CXDa20hrbQoNutOTniTkr00evBItYL
+FN4L0F0ApIjTTkZW2vjzNR59j8HfZ7zrPfy33VhJkyAS0o9nQt5v0J5wKHj1
+c3egj/Ffn/zSWZ1cTf3VSpfrGKUAlyB9KphZeYv2Og==
+EOS
+      },
+      :xyz=>{:code=>"class XYZPlugin < Scout::Plugin;def build_report; report(:value=>2);end;end",
+             :sig=><<EOS
+6cNcDCM2GWcoT1Iqri+XFPgAiMxQaf0b8kOi4KKafNVD94cPkcy6OknNeQUM
+v6GYcfGCAsiZvnjl/2wsqjvrAl/zyuSW/s5YLsjxca1LEvhkyxbpnDGuj32k
+3IuWKQ6JuEbmPXPP1aFsosOm7dbTCrjEn1fDQWAzmfCwznHV3MiqzvPD2D9g
+7gtxXcblNP6hm7A6AlBzP0hwYORR//gpLLGtmT5ewltHUj9aSUY0GQle3lvH
+/uzBDoV1x6mEYR2jPO5QQxL3BvTBvpC06ec8M/ZWbO9IwA7/DOs+vYfngxlp
+jbtpAK9QCaAalKy/Z29os/7aViHy9z9IVCpC/z3MDA==
+EOS
+      }
+  } # end of PLUGIN_FIXTURES
 
 end
 
