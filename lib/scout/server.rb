@@ -569,13 +569,14 @@ module Scout
     def request(url, response_handler, error, &connector)
       response           = nil
       Timeout.timeout(5 * 60, APITimeoutError) do
-        if p=ENV['http_proxy']
-          info("Using HTTP proxy from ENV['http_proxy']=#{p}")
-          proxy = URI.parse(p)
-          http  = Net::HTTP.proxy(proxy.host,proxy.port).new(url.host, url.port)
-        else
-          http  = Net::HTTP.new(url.host, url.port)
-        end
+
+        # take care of http/https proxy, if specified in environment variables
+        proxy_env = url.is_a?(URI::HTTPS) ? ENV['https_proxy'] : ENV['http_proxy']
+        proxy_uri = URI.parse(proxy_env || "") # Given a blank string, the URI instance's host/port/user/pass will be nil
+
+        # Net::HTTP::Proxy returns a regular Net::HTTP class if the first arguement (host) is nil
+        http=Net::HTTP::Proxy(proxy_uri.host,proxy_uri.port,proxy_uri.user,proxy_uri.port).new(url.host, url.port)
+
         if url.is_a? URI::HTTPS
           http.use_ssl     = true
           http.ca_file     = File.join( File.dirname(__FILE__),
