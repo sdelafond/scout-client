@@ -85,7 +85,6 @@ module Scout
         if iteration == 2 || iteration == 100
           info "Run #{iteration} data dump:"
           info bundle.inspect
-          info @history["memory"].inspect
         end
 
         sleep(SLEEP)
