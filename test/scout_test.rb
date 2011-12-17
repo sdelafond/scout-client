@@ -410,7 +410,7 @@ mybar=100
       scout(@client.key) # to write the initial history file. Sinatra MUST be running
       $continue_streaming = true # so the streamer will run once
       streamer=Scout::Streamer.new("http://none", "bogus_client_key", PATH_TO_DATA_FILE, [@client.plugins.first.id]+plugins.map(&:id), "bogus_streaming_key",nil) # for debugging, make last arg Logger.new(STDOUT)
-      res = $streamer_data # $streamer_data via the mock_streamer call
+      res = Pusher::Channel.streamer_data  # via the mock_streamer call
 
       assert res.is_a?(Hash)
       assert res[:plugins].is_a?(Array)
@@ -422,6 +422,7 @@ mybar=100
     end # end of mock_pusher
   end
 
+  # the local plugin shouldn't report
   def test_streamer_with_local_plugin
     local_path=File.join(AGENT_DIR,"my_local_plugin.rb")
     code=<<-EOC
@@ -435,11 +436,11 @@ mybar=100
     mock_pusher do
       $continue_streaming = true # so the streamer will run once
       streamer=Scout::Streamer.new("http://none", "bogus_client_key", PATH_TO_DATA_FILE, [@client.plugins.first.id], "bogus_streaming_key",nil) # for debugging, make last arg Logger.new(STDOUT)
-      res = $streamer_data # $streamer_data via the mock_streamer call
+      res = Pusher::Channel.streamer_data # Pusher::Channel.streamer_data via the mock_streamer call
 
       assert res.is_a?(Hash)
       assert res[:plugins].is_a?(Array)
-      assert_equal 1, res[:plugins].size
+      assert_equal 1, res[:plugins].size # this is NOT the local plugin, it's a regular plugin that's already there
       assert_equal 2, res[:plugins][0][:fields][:load]
     end # end of mock_pusher
   end
@@ -467,6 +468,20 @@ mybar=100
     sleep 2 # give process time to shut down
     assert !process_running?(process_id)
     assert_nil @client.reload.streamer_command
+  end
+
+  def test_streamer_with_memory
+    mock_pusher(3) do
+      plugin = create_plugin(@client, "memory plugin", PLUGIN_FIXTURES[:memory][:code], PLUGIN_FIXTURES[:memory][:sig])
+      scout(@client.key)
+      #puts YAML.load(File.read(PATH_TO_DATA_FILE))['memory'].to_yaml
+
+      $continue_streaming = true # so the streamer will start running
+      # for debugging, make last arg Logger.new(STDOUT)
+      streamer=Scout::Streamer.new("http://none", "bogus_client_key", PATH_TO_DATA_FILE, [plugin.id], "bogus_streaming_key",nil)
+      res = Pusher::Channel.streamer_data # Pusher::Channel.streamer_data via the mock_pusher call
+      assert_equal 3, res[:plugins][0][:fields][:v], "after the two streamer runs, this plugin should report v=3 -- it increments each run"
+    end
   end
 
 
@@ -585,16 +600,23 @@ mybar=100
     p
   end
 
-  # this with a block to mock the pusher call. You can access the streamer data through the global $streamer_data
+  # this with a block to mock the pusher call. You can access the streamer data through the Pusher::Channel.streamer_data
   # Must be called with a code block
-  def mock_pusher
+  def mock_pusher(num_runs=1)
     # redefine the trigger! method, so the streamer doesn't loop indefinitely. We can't just mock it, because
     # we need to set the $continue_streaming=false
+    $num_runs_for_mock_pusher=num_runs
     Pusher::Channel.module_eval do
       alias orig_trigger! trigger!
+      def self.streamer_data;@@streamer_data;end # for getting the data back out
       def trigger!(event_name, data, socket=nil)
-        $streamer_data = data
-        $continue_streaming=false
+        @num_run_for_tests = @num_run_for_tests ? @num_run_for_tests+1 : 1
+        # puts "in mock pusher trigger! This is run #{@num_run_for_tests} of #{$num_runs_for_mock_pusher}"
+        @@streamer_data = data
+        if @num_run_for_tests >= $num_runs_for_mock_pusher
+          $continue_streaming=false
+          @num_run_for_tests=nil
+        end
       end
     end
     yield # must be called with a block
@@ -624,6 +646,16 @@ v6GYcfGCAsiZvnjl/2wsqjvrAl/zyuSW/s5YLsjxca1LEvhkyxbpnDGuj32k
 7gtxXcblNP6hm7A6AlBzP0hwYORR//gpLLGtmT5ewltHUj9aSUY0GQle3lvH
 /uzBDoV1x6mEYR2jPO5QQxL3BvTBvpC06ec8M/ZWbO9IwA7/DOs+vYfngxlp
 jbtpAK9QCaAalKy/Z29os/7aViHy9z9IVCpC/z3MDA==
+EOS
+      },
+      :memory=>{:code=>"class MemoryPlugin < Scout::Plugin;def build_report; v=memory(:v)||0; report(:v=>v);remember(:v,v+1);end;end",
+                :sig=><<EOS
+5GNahpevN9VW5f7rmo6Cfq+2TWp8pwukxbE5laAZtDea44KaNE9gSMfiNCqz
+rLAHvNXITJi0uI1rm+HXrak6L5oGvSouivCPtPTq1jRBy4QX2Sk9+gNEtTa8
+HXu5TIQLJ/+IYHIG2E5FWcbfddR8cmJkIl4zGs93IatQNTENksRzphob7Cz8
+wBwOHDG78kJ4TWEV5NIa5rLW8y2ltthfEPCTnS8/Zxa6h0qFtNrUWiU2KKtp
+xTbJ3RgWKUnAR3YrEGB/JjjkPN2FrsDRvlClGujaYIWpWGkf+GZcpUn+QYxP
+w7/kFz29Ds4hJRg2E2cWCHPtrD4dI0p/1iwP4XsxOw==
 EOS
       }
   } # end of PLUGIN_FIXTURES

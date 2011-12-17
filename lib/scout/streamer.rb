@@ -30,45 +30,43 @@ module Scout
       load_history
 
       # get the array of plugins, AKA the plugin plan
-      @plugin_plan = Array(@history["old_plugins"])
-      info("Starting streamer with key=#{streaming_key} and plugin_ids: #{plugin_ids.inspect}. #{@history_file} includes plugin ids #{@plugin_plan.map{|p|p['id']}.inspect}")
+      @all_plugins = Array(@history["old_plugins"])
+      info("Starting streamer with key=#{streaming_key} and plugin_ids: #{plugin_ids.inspect}. #{@history_file} includes plugin ids #{@all_plugins.map{|p|p['id']}.inspect}")
 
-      # Compile instances of the plugins specified in the passed plugin_ids
-      plugin_ids.each_with_index do |plugin_id,i|
-        plugin_data=@plugin_plan.find{|plugin| plugin['id'] && plugin['id'].to_i == plugin_id}
-        if plugin_data
-          begin
-            plugin=get_instance_of(plugin_data, plugin_id)
-            info("#{i+1}) plugin_id=#{plugin_id} - instance of #{plugin.class.name} created for #{plugin_data['name']}" )
-            if plugin.is_a?(Plugin) # safety check that it's an instance of Plugin
-              @plugin_hashes.push(:instance=>plugin, :id=>plugin_id, :name=>plugin_data['name'])
-            end
-          rescue Exception
-            error("Encountered an error compiling: #{$!.message}")
-            error $!.backtrace.join('\n')
-          end
-        else
-          info("#{i+1}) plugin_id=#{plugin_id} specified in #{plugin_ids.inspect} but not found in #{@history_file}")
-        end
-      end
+      # selected_plugins is subset of the @all_plugins -- those selected in plugin_ids
+      selected_plugins = compile_plugins(@all_plugins, plugin_ids)
 
-      info "Finished compilation. #{@plugin_plan.size} plugins; #{@plugin_hashes.size} instances instantiated"
 
       # main loop. Continue running until global $continue_streaming is set to false OR we've been running for MAX DURATION
       iteration=1 # use this to log the data at a couple points
       while(streamer_start_time+MAX_DURATION > Time.now && $continue_streaming) do
         plugins=[]
-        @plugin_hashes.each_with_index do |plugin_hash,i|
-          plugin=plugin_hash[:instance]
+        selected_plugins.each_with_index do |plugin_hash,i|
+          # create an actual instance of the plugin
+          plugin=get_instance_of(plugin_hash)
+
           start_time=Time.now
-          plugin.reset!
-          plugin.run
+
+          data = {}
+          begin
+            Timeout.timeout(30, PluginTimeoutError) do
+              data = plugin.run
+            end
+          rescue Timeout::Error, PluginTimeoutError
+            error "Plugin took too long to run."
+          end
+
           duration=((Time.now-start_time)*1000).to_i
+
+          id_and_name = plugin_hash['id_and_name']
+          @history["last_runs"][id_and_name] = start_time
+          @history["memory"][id_and_name]    = data[:memory]
 
           plugins << {:duration=>duration,
                      :fields=>plugin.reports.inject{|memo,hash|memo.merge(hash)},
-                     :name=>plugin_hash[:name],
-                     :id=>plugin_hash[:id]}
+                     :name=>plugin_hash['name'],
+                     :id=>plugin_hash['id'],
+                     :class=>plugin_hash['code_class']}
         end
 
         bundle={:hostname=>hostname,
@@ -76,6 +74,7 @@ module Scout
                  :num_processes=>`ps -e | wc -l`.chomp.to_i,
                  :plugins=>plugins }
 
+        # stream the data via pusherapp
         begin
           Pusher[streaming_key].trigger!('server_data', bundle)
         rescue Pusher::Error => e
@@ -85,15 +84,8 @@ module Scout
 
         if iteration == 2 || iteration == 100
           info "Run #{iteration} data dump:"
-          info bundle.to_json
-        end
-
-        if false
-          # debugging
-          File.open(File.join(File.dirname(@history_file),"debug.txt"),"w") do |f|
-            f.puts "... sleeping @ #{Time.now.strftime("%I:%M:%S %p")}..."
-            f.puts bundle.to_yaml
-          end
+          info bundle.inspect
+          info @history["memory"].inspect
         end
 
         sleep(SLEEP)
@@ -106,42 +98,71 @@ module Scout
     
     private
 
-    # plugin is a hash of plugin data from the history file (id, name, code, etc).
-    # This plugin returns an instantiated instance of the plugin
-    def get_instance_of(plugin, plugin_id)
+    # Compile instances of the plugins specified in the passed plugin_ids
+    def compile_plugins(all_plugins,plugin_ids)
+      num_classes_compiled=0
+      selected_plugins=[]
+      plugin_ids.each_with_index do |plugin_id,i|
+        plugin=all_plugins.find{|plugin| plugin['id'] && plugin['id'].to_i == plugin_id}
+        if plugin
+          begin
+            # take care of plugin overrides
+            local_path = File.join(File.dirname(@history_file), "#{plugin_id}.rb")
+            if File.exist?(local_path)
+              code_to_run = File.read(local_path)
+            else
+              code_to_run=plugin['code'] || ""
+            end
 
-      # take care of plugin overrides
-      local_path = File.join(File.dirname(@history_file), "#{plugin_id}.rb")
-      if File.exist?(local_path)
-        code_to_run = File.read(local_path)
-      else
-        code_to_run=plugin['code'] || ""
+            code_class=Plugin.extract_code_class(code_to_run)
+
+            # eval the plugin code if it's not already defined
+            if !Object.const_defined?(code_class)
+              eval(code_to_run, TOPLEVEL_BINDING, plugin['name'] )
+
+              # turn certain methods into null-ops, so summaries aren't generated. Note that this is ad-hoc, and not future-proof.
+              klass=Scout::Plugin.const_get(code_class)
+              if code_class=="RailsRequests"
+                klass.module_eval { def analyze;end; }
+              end
+              if code_class=="ApacheAnalyzer"
+                klass.module_eval { def generate_log_analysis;end; }
+              end
+              info "#{i+1}) #{plugin['name']} (id=#{plugin_id}) - #{code_class} compiled."
+              num_classes_compiled+=1
+            else
+              info "#{i+1}) #{plugin['name']} (id=#{plugin_id}) - #{code_class} was compiled previously."
+            end
+            # we'll use code_class and id_and name again
+            plugin['code_class']=code_class
+            plugin['id_and_name']= "#{plugin['id']}-#{plugin['name']}".sub(/\A-/, "")
+            selected_plugins << plugin
+          rescue Exception
+            error("Encountered an error compiling: #{$!.message}")
+            error $!.backtrace.join('\n')
+          end
+        else
+          info("#{i+1}) plugin_id=#{plugin_id} specified in #{plugin_ids.inspect} but not found in #{@history_file}")
+        end
       end
 
-      id_and_name = "#{plugin_id}-#{plugin['name']}".sub(/\A-/, "")
-      last_run    = @history["last_runs"][id_and_name] ||
-                    @history["last_runs"][plugin['name']]
-      memory      = @history["memory"][id_and_name] ||
-                    @history["memory"][plugin['name']]
+      info "Finished compilation. #{num_classes_compiled} plugin classes compiled for the #{plugin_ids.size} plugin(s) needed for streaming."
+      return selected_plugins
+    end
+
+    # plugin is a hash of plugin data from the history file (id, name, code, etc).
+    # This plugin returns an instantiated instance of the plugin
+    def get_instance_of(plugin)
+
+      id_and_name = plugin['id_and_name']
+      last_run    = @history["last_runs"][id_and_name]
+      memory      = @history["memory"][id_and_name]
       options=(plugin['options'] || Hash.new)
       options.merge!(:tuner_days=>"")
 
-      code_class=Plugin.extract_code_class(code_to_run)
-
-      # eval the plugin code if it's not already defined
-      if !Plugin.const_defined?(code_class)
-        eval(code_to_run, TOPLEVEL_BINDING, plugin['path'] || plugin['name'] )
-      end
-
-      # now that we know the class is defined, reference its class
-      klass=Scout::Plugin.const_get(code_class)
-
-      # turn certain methods into null-ops, so summaries aren't generated. Note that this is ad-hoc, and not future-proof.
-      if klass.name=="RailsRequests"; def klass.analyze;end;end
-      if klass.name=="ApacheAnalyzer"; def klass.generate_log_analysis;end;end
-
       # finally, return an instance of the plugin
-      klass.load(last_run, (memory || Hash.new), options)
+      klass=Scout::Plugin.const_get(plugin['code_class'])
+      return klass.load(last_run, (memory || Hash.new), options)
     end
 
 
