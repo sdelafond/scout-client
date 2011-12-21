@@ -41,13 +41,15 @@ module Scout
     attr_reader :plugin_config
 
     # Creates a new Scout Server connection.
-    def initialize(server, client_key, history_file, logger = nil, server_name=nil)
+    def initialize(server, client_key, history_file, logger = nil, server_name=nil, http_proxy='', https_proxy='')
       @server       = server
       @client_key   = client_key
       @history_file = history_file
       @history      = Hash.new
       @logger       = logger
       @server_name  = server_name
+      @http_proxy   = http_proxy
+      @https_proxy   = https_proxy
       @plugin_plan  = []
       @plugins_with_signature_errors = []
       @directives   = {} # take_snapshots, interval, sleep_interval
@@ -570,11 +572,10 @@ module Scout
       response           = nil
       Timeout.timeout(5 * 60, APITimeoutError) do
 
-        # take care of http/https proxy, if specified in environment variables
-        proxy_env = url.is_a?(URI::HTTPS) ? ENV['https_proxy'] : ENV['http_proxy']
-        proxy_uri = URI.parse(proxy_env || "") # Given a blank string, the URI instance's host/port/user/pass will be nil
-
-        # Net::HTTP::Proxy returns a regular Net::HTTP class if the first arguement (host) is nil
+        # take care of http/https proxy, if specified in command line options
+        # Given a blank string, the proxy_uri URI instance's host/port/user/pass will be nil
+        # Net::HTTP::Proxy returns a regular Net::HTTP class if the first argument (host) is nil
+        proxy_uri = URI.parse(url.is_a?(URI::HTTPS) ? @http_proxy : @https_proxy)
         http=Net::HTTP::Proxy(proxy_uri.host,proxy_uri.port,proxy_uri.user,proxy_uri.port).new(url.host, url.port)
 
         if url.is_a? URI::HTTPS

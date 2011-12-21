@@ -72,6 +72,16 @@ module Scout
           options[:server_name] = server_name
         end
 
+        opts.on("--http-proxy URL", String,
+                 "Optional http proxy for non-SSL traffic." ) do |http_proxy|
+          options[:http_proxy] = http_proxy
+        end
+
+        opts.on("--https-proxy URL", String,
+                 "Optional https proxy for SSL traffic." ) do |https_proxy|
+          options[:https_proxy] = https_proxy
+        end
+
         opts.separator " "
         opts.separator "Common Options:"
         opts.separator "--------------------------------------------------------------------------"
@@ -154,6 +164,8 @@ module Scout
       @level   = options[:level]   || "info"
       @force   = options[:force]   || false
       @server_name    = options[:server_name]
+      @http_proxy     = options[:http_proxy] || ""
+      @https_proxy    = options[:https_proxy] || ""
 
       @args    = args
 
