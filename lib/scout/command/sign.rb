@@ -39,7 +39,7 @@ module Scout
         # take care of http/https proxy, if specified in command line options
         # Given a blank string, the proxy_uri URI instance's host/port/user/pass will be nil
         # Net::HTTP::Proxy returns a regular Net::HTTP class if the first argument (host) is nil
-        proxy_uri = URI.parse(uri.is_a?(URI::HTTPS) ? @http_proxy : @https_proxy)
+        proxy_uri = URI.parse(uri.is_a?(URI::HTTPS) ? @https_proxy : @http_proxy)
         http=Net::HTTP::Proxy(proxy_uri.host,proxy_uri.port,proxy_uri.user,proxy_uri.port).new(uri.host, uri.port)
 
         if uri.is_a?(URI::HTTPS)
