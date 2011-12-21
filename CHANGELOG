@@ -1,9 +1,13 @@
 == Master
 
+== 5.3.5
+
+* Moved proxy support command line flags
+
 == 5.3.4
 
 * Incorporating sleep interval into Server#time_to_checkin?
-* Added proxy support via http_proxy environment variable
+* Added proxy support command line flags
 
 == 5.3.3
 
