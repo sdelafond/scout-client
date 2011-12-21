@@ -4,3 +4,6 @@ pkg/*
 **/.DS_Store
 .idea
 working_dir/
+.rvmrc
+Gemfile.lock
+.bundle
