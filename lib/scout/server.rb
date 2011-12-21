@@ -495,7 +495,7 @@ module Scout
       contents=File.read(@history_file)
       begin
         @history = YAML.load(contents)
-      rescue => e
+      rescue
         backup_path=File.join(File.dirname(@history_file), "history.corrupt")
         info "Couldn't parse the history file. Deleting it and resetting to an empty history file. Keeping a backup at #{backup_path}"
         File.open(backup_path,"w"){|f|f.write contents}

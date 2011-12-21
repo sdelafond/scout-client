@@ -11,7 +11,7 @@ module Scout
       VERIFY_MODE = OpenSSL::SSL::VERIFY_PEER | OpenSSL::SSL::VERIFY_FAIL_IF_NO_PEER_CERT
       
       def run
-        url, *provided_options = @args
+        url = @args.first
         # read the plugin_code from the file specified
         if url.nil? or url == ''
           puts "Please specify the path to the plugin (scout sign /path/to/plugin.rb)"
