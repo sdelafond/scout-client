@@ -19,6 +19,18 @@ module Scout
         
         @scout.fetch_plan
 
+        # Spawn or stop streamer as needed
+        if @scout.streamer_command.is_a?(String)
+          if @scout.streamer_command.start_with?("start")
+            log.info "streamer command: start"
+            Scout::StreamerDaemon.start_daemon(history, @scout.streamer_command)
+          elsif @scout.streamer_command == "stop"
+            log.info "streamer command: stop"
+            Scout::StreamerDaemon.stop_daemon(history)
+          end
+        end
+
+        # Check in if appropriate
         if @scout.new_plan || @scout.time_to_checkin?  || @force
           if @scout.new_plan
             log.info("Now checking in with new plugin plan") if log

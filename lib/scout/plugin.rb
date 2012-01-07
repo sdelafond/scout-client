@@ -49,6 +49,16 @@ module Scout
         code =~ EMBEDDED_OPTIONS_REGEX
         return $2
       end
+
+      def extract_code_class(code)
+        match = /class\s\b(\w*)\s+?<\s+Scout::Plugin/.match(code)
+
+        if match
+          return match[1]
+        else
+          raise ArgumentError, "can't identify plugin class"
+        end
+      end
     end
 
     # Creates a new Scout Plugin to run.
@@ -122,7 +132,7 @@ module Scout
         alias_method :add_#{kind}, :#{kind}
       END
     end
-    
+
     #
     # Usage:
     # 

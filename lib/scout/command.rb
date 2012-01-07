@@ -167,6 +167,7 @@ module Scout
       @http_proxy     = options[:http_proxy] || ""
       @https_proxy    = options[:https_proxy] || ""
 
+      @options = options
       @args    = args
 
       # create config dir if necessary

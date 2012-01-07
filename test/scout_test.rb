@@ -5,6 +5,7 @@
 #
 $VERBOSE=nil
 $LOAD_PATH << File.expand_path( File.dirname(__FILE__) + '/../lib' )
+$LOAD_PATH << File.expand_path( File.dirname(__FILE__) + '/..' )
 require 'test/unit'
 require 'lib/scout'
 require "pty"
@@ -75,7 +76,7 @@ class ScoutTest < Test::Unit::TestCase
 
     assert_equal 'ping_key', history['directives']['ping_key']
   end
-  
+
   def test_should_not_run_if_not_time_to_checkin
     # do an initial checkin...should work
     test_should_run_first_time
@@ -392,12 +393,125 @@ mybar=100
     File.open(local_path,"w"){|f|f.write(code)}
 
     scout(@client.key)
-
     assert_equal plugin_count+1, @client.reload.plugins.count, "there should be one additional plugin records -- created from the local plugin"
-
     File.delete(local_path)
   end
 
+  # Streamer tests
+
+  # includes two plugins of the same class
+  def test_streamer_plugin_compilation
+    mock_pusher do
+      plugins=[]
+      plugins << create_plugin(@client, "AclPlugin_1", PLUGIN_FIXTURES[:acl][:code], PLUGIN_FIXTURES[:acl][:sig])
+      plugins << create_plugin(@client, "XYZ Plugin",  PLUGIN_FIXTURES[:xyz][:code], PLUGIN_FIXTURES[:xyz][:sig])
+      plugins << create_plugin(@client, "AclPlugin_2", PLUGIN_FIXTURES[:acl][:code], PLUGIN_FIXTURES[:acl][:sig])
+
+      scout(@client.key) # to write the initial history file. Sinatra MUST be running
+      $continue_streaming = true # so the streamer will run once
+      # for debugging, make last arg Logger.new(STDOUT)
+      Scout::Streamer.new(PATH_TO_DATA_FILE,"bogus_streaming_key","a","b","c",[@client.plugins.first.id]+plugins.map(&:id),nil)
+    end
+
+    streams = Pusher::Channel.streamer_data  # set by the mock_pusher call
+    assert streams.is_a?(Array)
+    assert_equal 1, streams.size
+    res=streams.first
+    assert res.is_a?(Hash)
+    assert res[:plugins].is_a?(Array)
+    assert_equal 4, res[:plugins].size
+    assert_equal 2, res[:plugins][0][:fields][:load]
+    assert_equal 1, res[:plugins][1][:fields][:value]
+    assert_equal 2, res[:plugins][2][:fields][:value]
+    assert_equal 1, res[:plugins][3][:fields][:value]
+  end
+
+  # the local plugin shouldn't report
+  def test_streamer_with_local_plugin
+    local_path=File.join(AGENT_DIR,"my_local_plugin.rb")
+    code=<<-EOC
+      class LocalPluginTest < Scout::Plugin
+        def build_report; report(:answer=>42);end
+      end
+    EOC
+    File.open(local_path,"w"){|f|f.write(code)}
+    scout(@client.key)
+
+    mock_pusher do
+      $continue_streaming = true # so the streamer will run once
+      # for debugging, make last arg Logger.new(STDOUT)
+      Scout::Streamer.new(PATH_TO_DATA_FILE,"bogus_streaming_key","a","b","c",[@client.plugins.first.id],nil)
+    end
+    streams = Pusher::Channel.streamer_data  # set by the mock_pusher call
+    assert streams.is_a?(Array)
+    assert_equal 1, streams.size
+    res=streams.first
+
+    assert res.is_a?(Hash)
+    assert res[:plugins].is_a?(Array)
+    assert_equal 1, res[:plugins].size # this is NOT the local plugin, it's a regular plugin that's already there
+    assert_equal 2, res[:plugins][0][:fields][:load]
+  end
+
+
+  # test streamer starting and stopping
+  def test_streamer_process_management
+    streamer_pid_file = File.join(AGENT_DIR, "scout_streamer.pid")
+    File.unlink(streamer_pid_file) if File.exist?(streamer_pid_file)
+
+    test_should_run_first_time
+
+    assert !File.exist?(streamer_pid_file)
+
+    assert @client.update_attribute(:streamer_command, "start,A0000000000123,a,b,c,1,3")
+    scout(@client.key)
+    assert File.exist?(streamer_pid_file)
+    process_id = File.read(streamer_pid_file).to_i
+    assert process_running?(process_id)
+    assert_nil @client.reload.streamer_command
+
+    sleep 2
+    assert @client.update_attribute(:streamer_command, "stop")
+    scout(@client.key)
+    assert !File.exist?(streamer_pid_file)
+    sleep 2 # give process time to shut down
+    assert !process_running?(process_id)
+    assert_nil @client.reload.streamer_command
+  end
+
+  def test_streamer_with_memory
+    mock_pusher(3) do
+      plugin = create_plugin(@client, "memory plugin", PLUGIN_FIXTURES[:memory][:code], PLUGIN_FIXTURES[:memory][:sig])
+      scout(@client.key)
+      #puts YAML.load(File.read(PATH_TO_DATA_FILE))['memory'].to_yaml
+      # for debugging, make last arg Logger.new(STDOUT)
+      Scout::Streamer.new(PATH_TO_DATA_FILE,"bogus_streaming_key","a","b","c",[plugin.id],nil)
+    end
+
+    streams = Pusher::Channel.streamer_data  # set by the mock_pusher call
+    assert streams.is_a?(Array)
+    assert_equal 3, streams.size
+    res=streams.last
+    assert_equal 3, res[:plugins][0][:fields][:v], "after the two streamer runs, this plugin should report v=3 -- it increments each run"
+  end
+
+  def test_new_plugin_instance_every_streamer_run
+    mock_pusher(2) do
+      plugin = create_plugin(@client, "caching plugin", PLUGIN_FIXTURES[:caching][:code], PLUGIN_FIXTURES[:caching][:sig])
+      scout(@client.key)
+      # for debugging, make last arg Logger.new(STDOUT)
+      Scout::Streamer.new(PATH_TO_DATA_FILE,"bogus_streaming_key","a","b","c",[plugin.id],nil)
+    end
+
+    streams = Pusher::Channel.streamer_data  # set by the mock_pusher call
+    assert streams.is_a?(Array)
+    assert_equal 2, streams.size
+
+    # the plugin sets :v to be the current time, and caches it in a class variable. we're checking that they are NOT equal
+    assert_in_delta Time.now.to_i, streams.last[:plugins][0][:fields][:v], 5, "should be within a few seconds of now"
+    assert_in_delta Time.now.to_i, streams.first[:plugins][0][:fields][:v], 5, "should be within a few seconds of now"
+    assert_not_equal streams.first[:plugins][0][:fields][:v], streams.last[:plugins][0][:fields][:v]
+  end
 
   ######################
   ### Helper Methods ###
@@ -435,6 +549,15 @@ mybar=100
 
   def history
     YAML.load(File.read(PATH_TO_DATA_FILE))
+  end
+
+  def process_running?(pid)
+    begin
+      Process.getpgid( pid )
+      true
+    rescue Errno::ESRCH
+      false
+    end
   end
 
   # Establishes AR connection
@@ -491,6 +614,93 @@ mybar=100
       ActiveRecord::Base.connection.execute("truncate table #{table}")
     end    
   end
+
+  # see scout's rake plugin:sign task to create the signature
+  def create_plugin(client,name, code, signature)
+    p=client.plugins.create(:name=>name)
+    PluginMeta.create(:plugin=>p)
+    p.meta.code=code
+    p.code_md5_signature=Digest::MD5.hexdigest(code)
+    p.signature=signature
+    p.save
+    p.meta.save
+    puts "There was a problem creating '#{name}' plugin: #{p.errors.inspect}" if p.errors.any?
+    p
+  end
+
+  # this with a block to mock the pusher call. You can access the streamer data through the Pusher::Channel.streamer_data
+  # Must be called with a code block
+  def mock_pusher(num_runs=1)
+    # redefine the trigger! method, so the streamer doesn't loop indefinitely. We can't just mock it, because
+    # we need to set the $continue_streaming=false
+    $num_runs_for_mock_pusher=num_runs
+    Pusher::Channel.module_eval do
+      alias orig_trigger! trigger!
+      def self.streamer_data;@@streamer_data;end # for getting the data back out
+      def trigger!(event_name, data, socket=nil)
+        @num_run_for_tests = @num_run_for_tests ? @num_run_for_tests+1 : 1
+        # puts "in mock pusher trigger! This is run #{@num_run_for_tests} of #{$num_runs_for_mock_pusher}"
+        @@streamer_data_temp ||= Array.new
+        @@streamer_data_temp << data
+        if @num_run_for_tests >= $num_runs_for_mock_pusher
+          Scout::Streamer.continue_streaming=false
+          @num_run_for_tests=nil
+          @@streamer_data = @@streamer_data_temp.clone
+          @@streamer_data_temp = nil
+        end
+      end
+    end
+    yield # must be called with a block
+    Pusher::Channel.module_eval do
+      alias trigger! orig_trigger!
+    end
+  end
+
+
+  # Use these to create plugins as needed
+  PLUGIN_FIXTURES={
+      :acl=>{:code=>"class AclPlugin < Scout::Plugin;def build_report; report(:value=>1);end;end",
+             :sig=><<EOS
+QT/IYlR+/3h0YwBAHJeFz4HRFlisocVGorafNYJSYJC5RaUKqxu3dM+bOU4P
+mQ5SmAt1mtXD5BJy2MeHam7Y8HAiWJbDBB318feZrC6xI2amu1b1/YMUyY8y
+fMXS9z8J+ABsFIyV26av1KLxU1EHxi9iKxPwMg0HKJhTBStX4uIyncr/+ZSS
+QKywEwPIPihFFyh9B2Z5WVSHtGcZG9CXDa20hrbQoNutOTniTkr00evBItYL
+FN4L0F0ApIjTTkZW2vjzNR59j8HfZ7zrPfy33VhJkyAS0o9nQt5v0J5wKHj1
+c3egj/Ffn/zSWZ1cTf3VSpfrGKUAlyB9KphZeYv2Og==
+EOS
+      },
+      :xyz=>{:code=>"class XYZPlugin < Scout::Plugin;def build_report; report(:value=>2);end;end",
+             :sig=><<EOS
+6cNcDCM2GWcoT1Iqri+XFPgAiMxQaf0b8kOi4KKafNVD94cPkcy6OknNeQUM
+v6GYcfGCAsiZvnjl/2wsqjvrAl/zyuSW/s5YLsjxca1LEvhkyxbpnDGuj32k
+3IuWKQ6JuEbmPXPP1aFsosOm7dbTCrjEn1fDQWAzmfCwznHV3MiqzvPD2D9g
+7gtxXcblNP6hm7A6AlBzP0hwYORR//gpLLGtmT5ewltHUj9aSUY0GQle3lvH
+/uzBDoV1x6mEYR2jPO5QQxL3BvTBvpC06ec8M/ZWbO9IwA7/DOs+vYfngxlp
+jbtpAK9QCaAalKy/Z29os/7aViHy9z9IVCpC/z3MDA==
+EOS
+      },
+      :memory=>{:code=>"class MemoryPlugin < Scout::Plugin;def build_report; v=memory(:v)||0; report(:v=>v);remember(:v,v+1);end;end",
+                :sig=><<EOS
+5GNahpevN9VW5f7rmo6Cfq+2TWp8pwukxbE5laAZtDea44KaNE9gSMfiNCqz
+rLAHvNXITJi0uI1rm+HXrak6L5oGvSouivCPtPTq1jRBy4QX2Sk9+gNEtTa8
+HXu5TIQLJ/+IYHIG2E5FWcbfddR8cmJkIl4zGs93IatQNTENksRzphob7Cz8
+wBwOHDG78kJ4TWEV5NIa5rLW8y2ltthfEPCTnS8/Zxa6h0qFtNrUWiU2KKtp
+xTbJ3RgWKUnAR3YrEGB/JjjkPN2FrsDRvlClGujaYIWpWGkf+GZcpUn+QYxP
+w7/kFz29Ds4hJRg2E2cWCHPtrD4dI0p/1iwP4XsxOw==
+EOS
+      },
+      :caching=>{:code=>"class CachingPlugin < Scout::Plugin;def build_report; @v||= Time.now.to_i; report(:v=>@v);end;end",
+                 :sig=><<EOS
+zcEUdxS9h/iD/xYK1SbvTn2mi0vJzfgIkmrouzXeRbEsbcKTdOhc3nOBwUH5
+SEOvQnPKmTiN7qaRiDZJypB/ldKxG4PL8zI0kL5G3AUZcxJBfqWe82jCKpyY
+I49DWaBW4tZWM3j5T64+60ifPlKVXQMLVIYQtPTpVDMnftzfokDbBYsEhB2e
+gNnsaAL5Nar+JE2GqM7nh79IgfXOrrYLdsv4zUJfex/OrKJS53ZCRnDcvlXu
+pKFiS6IF2dJkIFlnNlYaXK5ZSXGANGY80Ji4ivz077JpuogQzrVkqHk13A1G
+dGvCQOmVn51PKtmDm5DbfZaw4j4w+1pO2+G9Qm1y+A==
+EOS
+      }
+  } # end of PLUGIN_FIXTURES
+
 end
 
 # Connect to AR before running
