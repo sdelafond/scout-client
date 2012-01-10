@@ -414,6 +414,12 @@ module Scout
       end
       data
     ensure
+      if job
+        @history["last_runs"].delete(plugin['name'])
+        @history["memory"].delete(plugin['name'])
+        @history["last_runs"][id_and_name] = run_time
+        @history["memory"][id_and_name]    = job.data_for_server[:memory]
+      end
       if Plugin.last_defined
         debug "Removing plugin code..."
         begin
