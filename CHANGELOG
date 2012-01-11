@@ -1,6 +1,8 @@
 == Master
 
-* Updating history on plugin timeouts 
+== 5.5.1
+
+* Updating history on plugin timeouts (last run & memory). Previously, the data from the last successful run was retained.
 
 == 5.5.0
 
