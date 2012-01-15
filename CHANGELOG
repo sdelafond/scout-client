@@ -1,5 +1,9 @@
 == Master
 
+== 5.5.2
+
+* Fixed --http-proxy & --https-proxy support, which were broken in 5.5.0
+
 == 5.5.1
 
 * Updating history on plugin timeouts (last run & memory). Previously, the data from the last successful run was retained.
