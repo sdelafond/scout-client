@@ -105,7 +105,7 @@ module Scout
       num_classes_compiled=0
       selected_plugins=[]
       plugin_ids.each_with_index do |plugin_id,i|
-        plugin=all_plugins.find{|plugin| plugin['id'] && plugin['id'].to_i == plugin_id}
+        plugin=all_plugins.find{|p| p['id'] && p['id'].to_i == plugin_id}
         if plugin
           begin
             # take care of plugin overrides
