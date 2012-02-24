@@ -1,4 +1,6 @@
-== Master
+== 5.5.4
+
+* Fixes warnings with Ruby 1.9.3p0
 
 == 5.5.3
 
