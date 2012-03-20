@@ -12,7 +12,7 @@ Then simply run:
 
     $ scout
 
-to run the installation wizard. You'll need your server key, provided via Scout's web UI, to continue. Scout's web UI also provides additional troubleshooting and Ruby installation instructions.
+to start installation wizard. You'll need your server key, provided via Scout's web UI, to continue. Scout's web UI also provides additional troubleshooting and Ruby installation instructions.
 
 ## Running the Scout Agent
 
@@ -32,7 +32,7 @@ Local plugin testing:
     $ scout [OPTIONS] test PATH_TO_PLUGIN [PLUGIN_OPTIONS]
 
 
-`SERVER_KEY` is the identification key assigned by your account at http://scoutapp.com
+`SERVER_KEY` is the identification key assigned by your account at http://scoutapp.com.
 
 `PATH_TO_PLUGIN` is the file system path to a Ruby file that contains a Scout plugin.
 
@@ -51,8 +51,10 @@ Configure Scout to run every minute. Typically, this will look like:
 It's often helpful to log the output to a file. To do so:
 
     * * * * *  deploy /usr/bin/scout SERVER_KEY > /path/to/anywhere/scout.out 2>&1
+    
+## Troubleshooting
 
-For additional help, please visit http://scoutapp.com.
+Extensive help is available via our website (http://scoutapp.com) and during the agent installation in the Scout web UI.
 
 ## Credits / Contact
 
