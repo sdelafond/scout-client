@@ -12,7 +12,7 @@ Then simply run:
 
     $ scout
 
-to start installation wizard. You'll need your server key, provided via Scout's web UI, to continue. Scout's web UI also provides additional troubleshooting and Ruby installation instructions.
+to start the installation wizard. You'll need your server key, provided via Scout's web UI, to continue. Scout's web UI also provides additional troubleshooting and Ruby installation instructions.
 
 ## Running the Scout Agent
 
@@ -54,7 +54,7 @@ It's often helpful to log the output to a file. To do so:
     
 ## Troubleshooting
 
-Extensive help is available via our website (http://scoutapp.com) and during the agent installation in the Scout web UI.
+Extensive help is available via our website (http://scoutapp.com) and while installing the agent via the Scout web UI.
 
 ## Credits / Contact
 
