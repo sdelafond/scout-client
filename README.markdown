@@ -1,6 +1,6 @@
 # Scout Server Monitoring Agent
 
-[Scout](https://scoutapp.com) is an easy-to-use hosted server monitoring service. The `scout` Ruby gem reports metrics to our service. The agent runs plugins, configured via the Scout web interface, to monitor a server. [View a list of available plugins on our website](https://scoutapp.com/plugin_urls) and [their source on Github](http://github.com/highgroove/scout-plugins). 
+[Scout](https://scoutapp.com) is an easy-to-use hosted server monitoring service. The `scout` Ruby gem reports metrics to our service. The agent runs plugins, configured via the Scout web interface, to monitor a server. [View a list of available plugins on our website](https://scoutapp.com/plugin_urls) and [their source on Github](http://github.com/scoutapp/scout-plugins). 
 
 ## Installing
 
