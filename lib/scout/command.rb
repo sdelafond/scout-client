@@ -234,24 +234,28 @@ module Scout
           end
         end
       rescue
-        pid     = File.read(pid_file).strip.to_i rescue "unknown"
         running = true
-        begin
-          Process.kill(0, pid)
-          if stat = File.stat(pid_file)
-            if mtime = stat.mtime
-              if Time.now - mtime > 25 * 60  # assume process is hung after 25m
-                log.info "Trying to KILL an old process..." if log
-                Process.kill("KILL", pid)
-                running = false
+        pid = File.read(pid_file).strip.to_i rescue "unknown"
+        if pid.zero? 
+          running = false
+        else
+          begin
+            Process.kill(0, pid)
+            if stat = File.stat(pid_file)
+              if mtime = stat.mtime
+                if Time.now - mtime > 25 * 60  # assume process is hung after 25m
+                  log.info "Trying to KILL an old process..." if log
+                  Process.kill("KILL", pid)
+                  running = false
+                end
               end
             end
+          rescue Errno::ESRCH
+            running = false
+          rescue
+            # do nothing, we didn't have permission to check the running process
           end
-        rescue Errno::ESRCH
-          running = false
-        rescue
-          # do nothing, we didn't have permission to check the running process
-        end
+        end # pid.zero?
         if running
           if pid == "unknown"
             log.warn "Could not create or read PID file.  "                +
