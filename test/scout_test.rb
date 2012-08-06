@@ -16,7 +16,7 @@ require "active_record"
 require "json"          # the data format
 require "erb"           # only for loading rails DB config for now
 require "logger"
-require "newrelic_rpm"
+require 'newrelic_rpm'
 
 SCOUT_PATH = '../scout'
 SINATRA_PATH = '../scout_sinatra'
@@ -231,6 +231,28 @@ EOS
 
     corrupt_history_path=File.join AGENT_DIR, 'history.corrupt'
     assert File.exist?(corrupt_history_path), "Should have backed up corrupted history file"
+    File.delete(corrupt_history_path) # just cleanup
+  end
+  
+  def test_reset_with_truncated_history_file
+    File.open(PATH_TO_DATA_FILE,"w") do |f|
+      f.write <<-EOS
+---
+last_runs: 
+  221671-Processor statistics (mpstat): 2012-07-28 09:58:26.941653 +00:00
+  1404611-Backup Monitor: 2012-07-28 09:58:39.246464 +00:00
+old_plugins: 
+- name: Server Overview
+EOS
+
+    end
+    scout(@client.key)
+
+    assert_in_delta Time.now.utc.to_i, @client.reload.last_checkin.to_i, 100, 
+    "should have checked in even though history file is truncated"
+
+    corrupt_history_path=File.join AGENT_DIR, 'history.corrupt'
+    assert File.exist?(corrupt_history_path), "Should have backed up truncated history file"
     File.delete(corrupt_history_path) # just cleanup
   end
 
@@ -576,7 +598,7 @@ mybar=100
       ActiveRecord::Base.establish_connection(db_hash)
       # scout models and local models
 
-      require SINATRA_PATH + '/lib/ar_models.rb'
+      require SINATRA_PATH + '/app/models/ar_models.rb'
 
       ActiveRecord::Base.default_timezone = :utc
       

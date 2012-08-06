@@ -489,12 +489,13 @@ module Scout
       begin
         @history = YAML.load(contents)
       rescue
-        backup_path=File.join(File.dirname(@history_file), "history.corrupt")
-        info "Couldn't parse the history file. Deleting it and resetting to an empty history file. Keeping a backup at #{backup_path}"
-        File.open(backup_path,"w"){|f|f.write contents}
-        File.delete(@history_file)
-        create_blank_history
-        @history = File.open(@history_file) { |file| YAML.load(file) }
+        backup_history_and_recreate(contents,
+        "Couldn't parse the history file. Deleting it and resetting to an empty history file. Keeping a backup.")
+      end
+      
+      if last_runs=@history['last_runs'] and old_plugins=@history['old_plugins'] and last_runs.size != old_plugins.size
+        backup_history_and_recreate(contents, 
+        "The number of last runs [#{last_runs.size}] and old plugins [#{old_plugins.size}] don't match in the history file. Resetting history file. Keeping a backup.")
       end
 
       # YAML interprets an empty file as false. This condition catches that
@@ -504,6 +505,17 @@ module Scout
         exit(1)
       end
       info "History file loaded."
+    end
+    
+    # Called when a history file is determined to be corrupt / truncated / etc. Backup the existing file for later
+    # troubleshooting and create a fresh history file.
+    def backup_history_and_recreate(contents,message)
+      backup_path=File.join(File.dirname(@history_file), "history.corrupt")
+      info(message)
+      File.open(backup_path,"w"){|f|f.write contents}
+      File.delete(@history_file)
+      create_blank_history
+      @history = File.open(@history_file) { |file| YAML.load(file) }
     end
 
     # creates a blank history file
