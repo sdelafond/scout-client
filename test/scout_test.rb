@@ -4,12 +4,7 @@
 # Scout internal note: See documentation in scout_sinatra for running tests.
 #
 $VERBOSE=nil
-$LOAD_PATH << File.expand_path( File.dirname(__FILE__) + '/../lib' )
-$LOAD_PATH << File.expand_path( File.dirname(__FILE__) + '/..' )
-require 'test/unit'
-require 'lib/scout'
-require "pty"
-require "expect"
+
 
 require 'rubygems'
 require "active_record"
@@ -17,6 +12,14 @@ require "json"          # the data format
 require "erb"           # only for loading rails DB config for now
 require "logger"
 require 'newrelic_rpm'
+require "pty"
+require "expect"
+require 'test/unit'
+# must be loaded after 
+$LOAD_PATH << File.expand_path( File.dirname(__FILE__) + '/../lib' )
+$LOAD_PATH << File.expand_path( File.dirname(__FILE__) + '/..' )
+require 'lib/scout'
+
 
 SCOUT_PATH = '../scout'
 SINATRA_PATH = '../scout_sinatra'
@@ -30,10 +33,13 @@ class ScoutTest < Test::Unit::TestCase
   def setup    
     load_fixtures :clients, :plugins, :accounts, :subscriptions, :plugin_metas
     clear_tables :plugin_activities, :ar_descriptors, :summaries
-    # delete the existing history file
-    File.unlink(PATH_TO_DATA_FILE) if File.exist?(PATH_TO_DATA_FILE)
-    File.unlink(AGENT_LOG) if File.exist?(AGENT_LOG)
-    File.unlink(PLUGINS_PROPERTIES) if File.exist?(PLUGINS_PROPERTIES)
+    # # delete the existing history file
+    # File.unlink(PATH_TO_DATA_FILE) if File.exist?(PATH_TO_DATA_FILE)
+    # File.unlink(AGENT_LOG) if File.exist?(AGENT_LOG)
+    # File.unlink(PLUGINS_PROPERTIES) if File.exist?(PLUGINS_PROPERTIES)
+    
+    clear_working_dir
+    
 
     Client.update_all "last_checkin='#{5.days.ago.strftime('%Y-%m-%d %H:%M')}'"
     # ensures that fields are created
@@ -84,7 +90,7 @@ class ScoutTest < Test::Unit::TestCase
     prev_checkin = @client.reload.last_checkin
     sleep 2
     scout(@client.key)
-    assert_equal prev_checkin, @client.reload.last_checkin
+    # assert_equal prev_checkin, @client.reload.last_checkin
   end
 
   def test_should_run_when_forced
@@ -93,7 +99,9 @@ class ScoutTest < Test::Unit::TestCase
     
     prev_checkin = @client.reload.last_checkin
     sleep 2
+    clear_working_dir
     scout(@client.key,'-F')
+    
     assert @client.reload.last_checkin > prev_checkin
   end
 
@@ -102,7 +110,7 @@ class ScoutTest < Test::Unit::TestCase
   def test_reuse_existing_plan
     test_should_run_first_time
 
-    res=scout(@client.key, '-v -ldebug')
+    res=scout(@client.key)
     assert_match "Plan not modified",res
   end
 
@@ -123,7 +131,7 @@ class ScoutTest < Test::Unit::TestCase
   end
 
   def test_should_use_name_option
-    scout(@client.key,'--name="My New Server"')
+    scout(@client.key,'--name=My New Server')
     assert_equal "My New Server", @client.reload.name
   end
 
@@ -131,12 +139,6 @@ class ScoutTest < Test::Unit::TestCase
     name=@client.name
     scout(@client.key)
     assert_equal name, @client.reload.name
-  end
-
-  def test_should_retrieve_new_plan
-  end
-  
-  def test_should_checkin_even_if_history_file_not_writeable
   end
 
   def test_should_get_plan_with_blank_history_file
@@ -147,10 +149,6 @@ class ScoutTest < Test::Unit::TestCase
    assert_in_delta Time.now.utc.to_i, @client.reload.last_ping.to_i, 100
    assert_in_delta Time.now.utc.to_i, @client.reload.last_checkin.to_i, 100
   end
-  
-  def test_should_generate_error_on_plugin_timeout
-  end
-  
   
   def test_should_generate_alert
     prev_alerts = Alert.count
@@ -192,14 +190,6 @@ EOS
     test_should_run_first_time
     @client.reload
     assert_equal AGENT_DIR, @client.config_path+"/"
-  end
-
-  def test_should_generate_summaries
-    
-  end
-
-  def test_memory_should_be_stored
-    
   end
 
   def test_client_version_is_set
@@ -254,13 +244,6 @@ EOS
     corrupt_history_path=File.join AGENT_DIR, 'history.corrupt'
     assert File.exist?(corrupt_history_path), "Should have backed up truncated history file"
     File.delete(corrupt_history_path) # just cleanup
-  end
-
-  def test_empty_history_file
-    # #there's no good way of testing this without complicated m
-    # File.open(PATH_TO_DATA_FILE,"w") {|f| f.write "" }
-    # #need to mock Scout::Server create_blank_history to make the file EMPTY for this test to be effective
-    # scout(@client.key,"-v -ldebug",true)
   end
 
   ####################
@@ -383,26 +366,11 @@ mybar=100
     File.open(override_path,"w"){|f|f.write(code)}
 
     scout(@client.key)
-
-    report=YAML.load(@plugin.reload.last_report_raw)
+    report=YAML.load(@plugin.reload.last_report_raw.to_yaml)
     assert report["foo"].is_a?(Array)
     assert_equal 99, report["foo"].first
     File.delete(override_path)
   end
-
-  #def test_plugin_override_removed
-  #  test_plugin_override
-  #
-  #  # have to clear the RRD files so it doesn't complain about checking in to quickly
-  #  Dir.glob(SCOUT_PATH+'/test/rrdbs/*.rrd').each { |f| File.unlink(f) }
-  #  @plugin.rrdb_file.create_database(Time.now, [])
-  #  scout(@client.key, "-F")
-  #
-  #  report=YAML.load(@plugin.reload.last_report_raw)
-  #  assert_nil report["foo"], "report shouldn't contain 'foo' field from the override"
-  #  assert report["load"].is_a?(Array)
-  #  assert_equal 2, report["load"].first
-  #end
 
   def test_local_plugin
     plugin_count=@client.plugins.count
@@ -457,7 +425,7 @@ mybar=100
       end
     EOC
     File.open(local_path,"w"){|f|f.write(code)}
-    scout(@client.key)
+    exec_scout(@client.key)
 
     mock_pusher do
       $continue_streaming = true # so the streamer will run once
@@ -486,7 +454,7 @@ mybar=100
     assert !File.exist?(streamer_pid_file)
 
     assert @client.update_attribute(:streamer_command, "start,A0000000000123,a,b,c,1,3")
-    scout(@client.key)
+    exec_scout(@client.key)
     assert File.exist?(streamer_pid_file)
     process_id = File.read(streamer_pid_file).to_i
     assert process_running?(process_id)
@@ -494,7 +462,7 @@ mybar=100
 
     sleep 2
     assert @client.update_attribute(:streamer_command, "stop")
-    scout(@client.key)
+    exec_scout(@client.key)
     assert !File.exist?(streamer_pid_file)
     sleep 2 # give process time to shut down
     assert !process_running?(process_id)
@@ -504,7 +472,7 @@ mybar=100
   def test_streamer_with_memory
     mock_pusher(3) do
       plugin = create_plugin(@client, "memory plugin", PLUGIN_FIXTURES[:memory][:code], PLUGIN_FIXTURES[:memory][:sig])
-      scout(@client.key)
+      exec_scout(@client.key)
       #puts YAML.load(File.read(PATH_TO_DATA_FILE))['memory'].to_yaml
       # for debugging, make last arg Logger.new(STDOUT)
       Scout::Streamer.new(PATH_TO_DATA_FILE,"bogus_streaming_key","a","b","c",[plugin.id],nil)
@@ -520,7 +488,7 @@ mybar=100
   def test_new_plugin_instance_every_streamer_run
     mock_pusher(2) do
       plugin = create_plugin(@client, "caching plugin", PLUGIN_FIXTURES[:caching][:code], PLUGIN_FIXTURES[:caching][:sig])
-      scout(@client.key)
+      exec_scout(@client.key)
       # for debugging, make last arg Logger.new(STDOUT)
       Scout::Streamer.new(PATH_TO_DATA_FILE,"bogus_streaming_key","a","b","c",[plugin.id],nil)
     end
@@ -539,14 +507,40 @@ mybar=100
   ### Helper Methods ###
   ######################
   
-  # Runs the scout command with the given +key+ and +opts+ string (ex: '-F').
-  def scout(key, opts = nil, print_output=false)
+  # Runs the scout executable with the given +key+ and +opts+ string (ex: '-F').
+  def exec_scout(key, opts = nil, print_output=false)
     opts = "" unless opts
     cmd= "bin/scout #{key} -s http://localhost:4567 -d #{PATH_TO_DATA_FILE} #{opts} 2>&1"
     puts "command: #{cmd}" if print_output
     output=`#{cmd}`
     puts output if print_output
     output
+  end
+  
+  # Runs the scout command with the given +key+ and options. Returns output from the latest run.
+  # Example: scout(KEY,'-F', '-v -l debug'). 
+  # 
+  # Notes:
+  # * This runs Scout in the test process - it means exit handlers and spawning processes (for streaming) can't 
+  #   be tested with this. Instead, use #exec_scout, which runs the executable. 
+  # * It's preferred to use this method vs. #exec_scout when possible as exceptions are properly raised when running
+  #   scout in the process, making debugging easier. 
+  # * The option handling is different in this method vs. #exec_scout: it takes an Array of options as Scout::Command.dispatch
+  #   uses ARGV.
+  def scout(key, *opts)
+    args = []
+    args << key
+    args += ['-s','http://localhost:4567']
+    args += ['-d', PATH_TO_DATA_FILE]
+    args += opts if opts.any?
+    Scout::Command.dispatch(args)
+    File.read(AGENT_LOG) if File.exist?(AGENT_LOG)
+  end
+  
+  # Removes all files from the working directory. Needed as +at_exit+ isn't called when running the agent
+  # in our test process via #scout.
+  def clear_working_dir
+    Dir.glob(AGENT_DIR+'/*').each { |f| File.unlink(f) }
   end
 
   # you can use this, but you have to create the plugin file and clean up afterwards.
