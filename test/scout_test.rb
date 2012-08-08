@@ -127,7 +127,6 @@ class ScoutTest < Test::Unit::TestCase
     sleep 1
     scout(@client.key)
     assert File.read(AGENT_LOG).size > log_file_size, "log should be longer after ping"
-
   end
 
   def test_should_use_name_option
@@ -236,7 +235,8 @@ old_plugins:
 EOS
 
     end
-    scout(@client.key)
+    output = scout(@client.key)
+    assert output =~ /don't match in the history file/
 
     assert_in_delta Time.now.utc.to_i, @client.reload.last_checkin.to_i, 100, 
     "should have checked in even though history file is truncated"
@@ -244,6 +244,29 @@ EOS
     corrupt_history_path=File.join AGENT_DIR, 'history.corrupt'
     assert File.exist?(corrupt_history_path), "Should have backed up truncated history file"
     File.delete(corrupt_history_path) # just cleanup
+  end
+  
+  def test_no_last_runs_and_memory
+    # do an initial checkin
+    test_should_run_first_time
+    File.unlink(AGENT_DIR+'/scout_client_pid.txt')
+    prev_checkin = @client.reload.last_checkin
+    data = YAML.load_file(PATH_TO_DATA_FILE)
+    # remove the last_runs and memory keys from the history file
+    File.open(PATH_TO_DATA_FILE,"w+") do |f|
+      data.delete('last_runs')
+      data.delete('memory')
+      f.write(data.to_yaml)
+    end
+    
+    sleep 2
+    # ensure no errors created and validation errors logged
+    errors_before = PluginError.count
+    output=scout(@client.key,'-F')
+    assert output =~ /History file is missing last_runs key/   
+    assert output =~ /History file is missing memory key/     
+    assert @client.reload.last_checkin > prev_checkin 
+    assert_equal errors_before, PluginError.count 
   end
 
   ####################
@@ -382,8 +405,24 @@ mybar=100
     EOC
     File.open(local_path,"w"){|f|f.write(code)}
 
-    scout(@client.key)
+    output=scout(@client.key)
     assert_equal plugin_count+1, @client.reload.plugins.count, "there should be one additional plugin records -- created from the local plugin"
+    File.delete(local_path)
+  end
+  
+  def test_do_not_run_local_plugins_if_not_a_scout_plugin
+    plugin_count=@client.plugins.count
+    local_path=File.join(AGENT_DIR,"my_ruby_script.rb")
+    code=<<-EOC
+      puts 'yo!!!!!!'
+      `touch #{AGENT_DIR}/created_file.txt`
+    EOC
+    File.open(local_path,"w"){|f|f.write(code)}
+    
+    output=scout(@client.key)
+    assert !File.exist?("#{AGENT_DIR}/created_file.txt")
+    assert_equal plugin_count, @client.reload.plugins.count
+    assert output =~ /doesn't look like a Scout::Plugin/
     File.delete(local_path)
   end
 

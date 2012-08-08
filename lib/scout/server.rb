@@ -169,7 +169,7 @@ module Scout
                     nil
                   end
         begin
-          {
+          plugin = {
             'name'            => name,
             'local_filename'  => name,
             'origin'          => 'LOCAL',
@@ -177,6 +177,12 @@ module Scout
             'interval'        => 0,
             'options'         => options
           }
+          if !plugin['code'].include?('Scout::Plugin')
+            info "Local Plugin [#{plugin_path}] doesn't look like a Scout::Plugin. Ignoring."
+            nil
+          else
+            plugin
+          end
         rescue => e
           info "Error trying to read local plugin: #{plugin_path} -- #{e.backtrace.join('\n')}"
           nil
@@ -492,12 +498,7 @@ module Scout
         backup_history_and_recreate(contents,
         "Couldn't parse the history file. Deleting it and resetting to an empty history file. Keeping a backup.")
       end
-      
-      if last_runs=@history['last_runs'] and old_plugins=@history['old_plugins'] and last_runs.size != old_plugins.size
-        backup_history_and_recreate(contents, 
-        "The number of last runs [#{last_runs.size}] and old plugins [#{old_plugins.size}] don't match in the history file. Resetting history file. Keeping a backup.")
-      end
-
+      validate_and_fix_history_file(contents)
       # YAML interprets an empty file as false. This condition catches that
       if !@history
         info "There is a problem with the history file at '#{@history_file}'. The root cause is sometimes a full disk. "+
@@ -505,6 +506,25 @@ module Scout
         exit(1)
       end
       info "History file loaded."
+    end
+    
+    # Possible for the history file to be corrupted. This checks for two reported cases:
+    # 1. A truncated history file - the # of old_plugins doesn't match the # of last_runs. This prevents any truncated
+    #    plugins from running. 
+    # 2. Missing 'last_runs' and/or 'memory' keys. Plugins can't be processed w/o these.
+    def validate_and_fix_history_file(contents)
+      if last_runs=@history['last_runs'] and old_plugins=@history['old_plugins'] and last_runs.size != old_plugins.size
+        backup_history_and_recreate(contents, 
+        "The number of last runs [#{last_runs.size}] and old plugins [#{old_plugins.size}] don't match in the history file. Resetting history file. Keeping a backup.")
+      end
+      if !@history.has_key?('last_runs')
+        info "History file is missing last_runs key. Adding."
+        @history['last_runs'] = Hash.new
+      end
+      if !@history.has_key?('memory')
+        info "History file is missing memory key. Adding."
+        @history['memory'] = Hash.new
+      end
     end
     
     # Called when a history file is determined to be corrupt / truncated / etc. Backup the existing file for later

@@ -27,6 +27,7 @@ module Scout
         puts "Gathering troubleshooting information about your Scout install ... "
 
         heading "Scout Info"
+        bullet "Hostname", Socket.gethostname
         bullet "History file", history
         bullet "Version", Scout::VERSION
 
