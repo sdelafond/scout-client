@@ -498,7 +498,6 @@ module Scout
         backup_history_and_recreate(contents,
         "Couldn't parse the history file. Deleting it and resetting to an empty history file. Keeping a backup.")
       end
-      validate_and_fix_history_file(contents)
       # YAML interprets an empty file as false. This condition catches that
       if !@history
         info "There is a problem with the history file at '#{@history_file}'. The root cause is sometimes a full disk. "+
@@ -506,30 +505,6 @@ module Scout
         exit(1)
       end
       info "History file loaded."
-    end
-    
-    # Possible for the history file to be corrupted. This checks for two reported cases:
-    # 1. A truncated history file - this test is NOT guarenteed to find a truncated history file - it checks
-    #    to ensure that every old plugin has the 'code' key. If this is missing, it's an indication that something may be wrong.
-    # 2. Missing 'last_runs' and/or 'memory' keys. Plugins can't be processed w/o these.
-    def validate_and_fix_history_file(contents)
-      if last_runs=@history['last_runs'] and old_plugins=@history['old_plugins'] and last_runs.size != old_plugins.size
-        backup_history_and_recreate(contents, 
-        "The number of last runs [#{last_runs.size}] and old plugins [#{old_plugins.size}] don't match in the history file. Resetting and keeping a backup.")
-      end
-      # truncated file check
-      if old_plugins=@history['old_plugins'] and old_plugins.any? { |p| !p.has_key?('code') }
-        backup_history_and_recreate(contents, 
-        "At least one plugin is missing the 'code' key. The history may have been truncated. Resetting and eeping a backup.")
-      end
-      if !@history.has_key?('last_runs')
-        info "History file is missing last_runs key. Adding."
-        @history['last_runs'] = Hash.new
-      end
-      if !@history.has_key?('memory')
-        info "History file is missing memory key. Adding."
-        @history['memory'] = Hash.new
-      end
     end
     
     # Called when a history file is determined to be corrupt / truncated / etc. Backup the existing file for later

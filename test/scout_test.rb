@@ -222,52 +222,6 @@ EOS
     assert File.exist?(corrupt_history_path), "Should have backed up corrupted history file"
     File.delete(corrupt_history_path) # just cleanup
   end
-  
-  def test_reset_with_truncated_history_file
-    File.open(PATH_TO_DATA_FILE,"w") do |f|
-      f.write <<-EOS
----
-last_runs: 
-  221671-Processor statistics (mpstat): 2012-07-28 09:58:26.941653 +00:00
-  1404611-Backup Monitor: 2012-07-28 09:58:39.246464 +00:00
-old_plugins: 
-- name: Server Overview
-EOS
-
-    end
-    output = scout(@client.key)
-    assert output =~ /don't match in the history file/
-
-    assert_in_delta Time.now.utc.to_i, @client.reload.last_checkin.to_i, 100, 
-    "should have checked in even though history file is truncated"
-
-    corrupt_history_path=File.join AGENT_DIR, 'history.corrupt'
-    assert File.exist?(corrupt_history_path), "Should have backed up truncated history file"
-    File.delete(corrupt_history_path) # just cleanup
-  end
-  
-  def test_no_last_runs_and_memory
-    # do an initial checkin
-    test_should_run_first_time
-    File.unlink(AGENT_DIR+'/scout_client_pid.txt')
-    prev_checkin = @client.reload.last_checkin
-    data = YAML.load_file(PATH_TO_DATA_FILE)
-    # remove the last_runs and memory keys from the history file
-    File.open(PATH_TO_DATA_FILE,"w+") do |f|
-      data.delete('last_runs')
-      data.delete('memory')
-      f.write(data.to_yaml)
-    end
-    
-    sleep 2
-    # ensure no errors created and validation errors logged
-    errors_before = PluginError.count
-    output=scout(@client.key,'-F')
-    assert output =~ /History file is missing last_runs key/   
-    assert output =~ /History file is missing memory key/     
-    assert @client.reload.last_checkin > prev_checkin 
-    assert_equal errors_before, PluginError.count 
-  end
 
   ####################
   ### Test-Related ###
