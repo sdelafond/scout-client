@@ -43,6 +43,7 @@ module Scout
       @local_plugin_path = File.dirname(history_file) # just put overrides and ad-hoc plugins in same directory as history file.
       @plugin_config_path = File.join(@local_plugin_path, "plugins.properties")
       @account_public_key_path = File.join(@local_plugin_path, "scout_rsa.pub")
+      @history_tmp_file = history_file+'.tmp'
       @plugin_config = load_plugin_configs(@plugin_config_path)
 
       # the block is only passed for install and test, since we split plan retrieval outside the lockfile for run
@@ -527,10 +528,14 @@ module Scout
       info "History file created."
     end
 
-    # Saves the history file to disk.
+    # Saves the history file to disk. 
+    #
+    # Uses an Atomic Write - first writes to a tmp file then replace the history file. 
+    # Ensures reads on the history file don't see a partial write. 
     def save_history
       debug "Saving history file..."
-      File.open(@history_file, "w") { |file| YAML.dump(@history, file) }
+      File.open(@history_temp_file, "w") { |file| YAML.dump(@history, file) }
+      FileUtils.mv(@history_temp_file, @history_file)
       info "History file saved."
     end
 
