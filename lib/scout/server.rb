@@ -534,8 +534,8 @@ module Scout
     # Ensures reads on the history file don't see a partial write. 
     def save_history
       debug "Saving history file..."
-      File.open(@history_temp_file, "w") { |file| YAML.dump(@history, file) }
-      FileUtils.mv(@history_temp_file, @history_file)
+      File.open(@history_tmp_file, "w") { |file| YAML.dump(@history, file) }
+      FileUtils.mv(@history_tmp_file, @history_file)
       info "History file saved."
     end
 

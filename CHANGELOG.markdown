@@ -1,10 +1,10 @@
 # 5.5.6
 
+* Fixing broken tests
 * PID file rescue fix
-* Resetting history file when it appears to be truncated (# of last runs != # of old plugins)
 * Only running local plugins if a Scout::Plugin
 * Added hostname to troubleshooting output
-* Fixing broken tests
+* Atomic Write history file when saving
 
 # 5.5.5
 
