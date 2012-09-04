@@ -1,3 +1,8 @@
+# 5.5.7
+
+* Fixing broken tests
+* Using proxy password (was using proxy port on mistake)
+
 # 5.5.6
 
 * Fixing broken tests

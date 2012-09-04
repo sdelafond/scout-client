@@ -31,13 +31,8 @@ PATH_TO_TEST_PLUGIN = File.expand_path( File.dirname(__FILE__) ) + '/plugins/tem
 
 class ScoutTest < Test::Unit::TestCase
   def setup    
-    load_fixtures :clients, :plugins, :accounts, :subscriptions, :plugin_metas
+    load_fixtures :clients, :accounts, :plugins, :subscriptions, :plugin_metas
     clear_tables :plugin_activities, :ar_descriptors, :summaries
-    # # delete the existing history file
-    # File.unlink(PATH_TO_DATA_FILE) if File.exist?(PATH_TO_DATA_FILE)
-    # File.unlink(AGENT_LOG) if File.exist?(AGENT_LOG)
-    # File.unlink(PLUGINS_PROPERTIES) if File.exist?(PLUGINS_PROPERTIES)
-    
     clear_working_dir
     
 
