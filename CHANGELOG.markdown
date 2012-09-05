@@ -1,3 +1,7 @@
+# 5.5.8.pre
+
+* Passing server_name for install + test commands so https_proxy is used.
+
 # 5.5.7
 
 * Fixing broken tests
