@@ -1,6 +1,7 @@
-# 5.5.8.pre
+# 5.5.8.pre.1
 
 * Passing server_name for install + test commands so https_proxy is used.
+* Resetting history file when then client key changes
 
 # 5.5.7
 
