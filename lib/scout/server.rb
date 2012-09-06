@@ -24,6 +24,7 @@ module Scout
     attr_reader :directives
     attr_reader :plugin_config
     attr_reader :streamer_command
+    attr_reader :client_key
 
     # Creates a new Scout Server connection.
     def initialize(server, client_key, history_file, logger = nil, server_name=nil, http_proxy='', https_proxy='')
@@ -199,6 +200,15 @@ module Scout
 
     def ping_key
       (@history['directives'] || {})['ping_key']
+    end
+    
+    def client_key_changed?
+      if client_key != (last_client_key=@history['last_client_key'])
+        warn "The key associated with the history file has changed [#{last_client_key}] => [#{client_key}]."
+        true
+      else
+        false
+      end
     end
     
     # Returns the Scout public key for code verification.
@@ -499,6 +509,12 @@ module Scout
         backup_history_and_recreate(contents,
         "Couldn't parse the history file. Deleting it and resetting to an empty history file. Keeping a backup.")
       end
+      # need to load the history file first to determine if the key changed. 
+      # if it has, reset.
+      if client_key_changed?
+        create_blank_history
+        @history = YAML.load(File.read(@history_file))
+      end
       # YAML interprets an empty file as false. This condition catches that
       if !@history
         info "There is a problem with the history file at '#{@history_file}'. The root cause is sometimes a full disk. "+
@@ -523,7 +539,7 @@ module Scout
     def create_blank_history
       debug "Creating empty history file..."
       File.open(@history_file, "w") do |file|
-        YAML.dump({"last_runs" => Hash.new, "memory" => Hash.new}, file)
+        YAML.dump({"last_runs" => Hash.new, "memory" => Hash.new, "last_client_key" => client_key}, file)
       end
       info "History file created."
     end

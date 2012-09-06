@@ -123,6 +123,18 @@ class ScoutTest < Test::Unit::TestCase
     scout(@client.key)
     assert File.read(AGENT_LOG).size > log_file_size, "log should be longer after ping"
   end
+  
+  def test_should_reset_history_on_key_change
+    test_should_run_first_time
+    data=YAML::load(File.read(PATH_TO_DATA_FILE))
+    assert_equal @client.ping_key, data['directives']['ping_key']
+    assert_equal @client.key, data['last_client_key']
+    sleep 1
+    x=exec_scout('INVALIDKEY')
+    data=YAML::load(File.read(PATH_TO_DATA_FILE))
+    assert_equal 'INVALIDKEY', data['last_client_key']
+    assert_nil data['directives']
+  end
 
   def test_should_use_name_option
     scout(@client.key,'--name=My New Server')
