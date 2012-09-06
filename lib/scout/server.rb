@@ -203,7 +203,10 @@ module Scout
     end
     
     def client_key_changed?
-      if client_key != (last_client_key=@history['last_client_key'])
+      last_client_key=@history['last_client_key']
+      # last_client_key will be nil on versions <= 5.5.7. when the agent runs after the upgrade, it will no longer 
+      # be nil. don't want to aggressively reset the history file as it clears out memory values which may impact alerts.
+      if last_client_key and client_key != last_client_key
         warn "The key associated with the history file has changed [#{last_client_key}] => [#{client_key}]."
         true
       else
@@ -550,6 +553,7 @@ module Scout
     # Ensures reads on the history file don't see a partial write. 
     def save_history
       debug "Saving history file..."
+      @history['last_client_key'] = client_key
       File.open(@history_tmp_file, "w") { |file| YAML.dump(@history, file) }
       FileUtils.mv(@history_tmp_file, @history_file)
       info "History file saved."
