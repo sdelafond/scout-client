@@ -130,7 +130,7 @@ class ScoutTest < Test::Unit::TestCase
     assert_equal @client.ping_key, data['directives']['ping_key']
     assert_equal @client.key, data['last_client_key']
     sleep 1
-    x=exec_scout('INVALIDKEY')
+    exec_scout('INVALIDKEY')
     data=YAML::load(File.read(PATH_TO_DATA_FILE))
     assert_equal 'INVALIDKEY', data['last_client_key']
     assert_nil data['directives']
