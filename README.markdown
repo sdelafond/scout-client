@@ -22,17 +22,16 @@ Normal checkin with server:
 
     $ scout [OPTIONS] SERVER_KEY
 
+`SERVER_KEY` is the identification key assigned by your account at http://scoutapp.com.
+
 Install:
 
     $ scout
     $ scout [OPTIONS] install
-
+    
 Local plugin testing:
 
     $ scout [OPTIONS] test PATH_TO_PLUGIN [PLUGIN_OPTIONS]
-
-
-`SERVER_KEY` is the identification key assigned by your account at http://scoutapp.com.
 
 `PATH_TO_PLUGIN` is the file system path to a Ruby file that contains a Scout plugin.
 
@@ -40,19 +39,21 @@ Local plugin testing:
 
     key1=val1 key2=val2
     
-These options will be used for the plugin run.
+These options will be used for the plugin run. [Lean more about creating your own plugins](https://scoutapp.com/info/creating_a_plugin).
+
+For a full list of options:
+
+    scout --help
 
 ## Setting up in Cron
 
 Configure Scout to run every minute. Typically, this will look like:
 
     * * * * *  deploy /usr/bin/scout SERVER_KEY
-
-It's often helpful to log the output to a file. To do so:
-
-    * * * * *  deploy /usr/bin/scout SERVER_KEY > /path/to/anywhere/scout.out 2>&1
     
 ## Troubleshooting
+
+The `scout troubleshoot` command provides useful troubleshooting information (log of the last run, environment information, and the list of gems).
 
 Extensive help is available via our website (http://scoutapp.com) and while installing the agent via the Scout web UI.
 
