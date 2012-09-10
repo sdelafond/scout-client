@@ -214,6 +214,15 @@ module Scout
       end
     end
     
+    # need to load the history file first to determine if the key changed. 
+    # if it has, reset.
+    def recreate_history_if_client_key_changed
+      if client_key_changed?
+        create_blank_history
+        @history = YAML.load(File.read(@history_file))
+      end
+    end
+    
     # Returns the Scout public key for code verification.
     def scout_public_key
       return @scout_public_key if instance_variables.include?('@scout_public_key')
@@ -512,12 +521,7 @@ module Scout
         backup_history_and_recreate(contents,
         "Couldn't parse the history file. Deleting it and resetting to an empty history file. Keeping a backup.")
       end
-      # need to load the history file first to determine if the key changed. 
-      # if it has, reset.
-      if client_key_changed?
-        create_blank_history
-        @history = YAML.load(File.read(@history_file))
-      end
+      recreate_history_if_client_key_changed
       # YAML interprets an empty file as false. This condition catches that
       if !@history
         info "There is a problem with the history file at '#{@history_file}'. The root cause is sometimes a full disk. "+
