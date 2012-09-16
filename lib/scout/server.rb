@@ -70,7 +70,7 @@ module Scout
         if res.is_a?(Net::HTTPNotModified)
           return false
         else
-          info "Plan has been modified! (#{res.inspect})"
+          info "Plan has been modified!"
           return true
         end
       end
