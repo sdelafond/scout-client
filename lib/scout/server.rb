@@ -46,6 +46,7 @@ module Scout
       @account_public_key_path = File.join(@local_plugin_path, "scout_rsa.pub")
       @history_tmp_file = history_file+'.tmp'
       @plugin_config = load_plugin_configs(@plugin_config_path)
+      @data_file = Scout::DataFile.new(@history_file,@logger)
 
       # the block is only passed for install and test, since we split plan retrieval outside the lockfile for run
       if block_given?
@@ -56,7 +57,6 @@ module Scout
     end
 
     def refresh?
-      #info "called refresh: ping_key=#{ping_key}"
       return true if !ping_key or account_public_key_changed? # fetch the plan again if the account key is modified/created
 
       url=URI.join( @server.sub("https://","http://"), "/clients/#{ping_key}/ping.scout")
@@ -65,12 +65,12 @@ module Scout
       if @history["plan_last_modified"] and @history["old_plugins"]
         headers["If-Modified-Since"] = @history["plan_last_modified"]
       end
-      get(url, "Could not ping #{url} for refresh info", headers) do |res|
+      get(url, "Could not ping #{url} for refresh info", headers) do |res|        
         @streamer_command = res["x-streamer-command"] # usually will be nil, but can be [start,abcd,1234,5678|stop]
         if res.is_a?(Net::HTTPNotModified)
           return false
         else
-          info "Plan has been modified!"
+          info "Plan has been modified! (#{res.inspect})"
           return true
         end
       end
@@ -545,21 +545,15 @@ module Scout
     # creates a blank history file
     def create_blank_history
       debug "Creating empty history file..."
-      File.open(@history_file, "w") do |file|
-        YAML.dump({"last_runs" => Hash.new, "memory" => Hash.new, "last_client_key" => client_key}, file)
-      end
+      @data_file.save(YAML.dump({"last_runs" => Hash.new, "memory" => Hash.new, "last_client_key" => client_key}))
       info "History file created."
     end
 
     # Saves the history file to disk. 
-    #
-    # Uses an Atomic Write - first writes to a tmp file then replace the history file. 
-    # Ensures reads on the history file don't see a partial write. 
     def save_history
       debug "Saving history file..."
       @history['last_client_key'] = client_key
-      File.open(@history_tmp_file, "w") { |file| YAML.dump(@history, file) }
-      FileUtils.mv(@history_tmp_file, @history_file)
+      @data_file.save(YAML.dump(@history))
       info "History file saved."
     end
 

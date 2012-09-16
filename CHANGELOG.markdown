@@ -1,3 +1,7 @@
+# 5.5.9
+
+* Locking data file when writing.
+
 # 5.5.8
 
 * Passing server_name for install + test commands so https_proxy is used.
