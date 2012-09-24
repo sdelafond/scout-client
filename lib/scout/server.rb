@@ -59,7 +59,7 @@ module Scout
     def refresh?
       return true if !ping_key or account_public_key_changed? # fetch the plan again if the account key is modified/created
 
-      url=URI.join( @server.sub("https://","http://"), "/clients/#{ping_key}/ping.scout")
+      url=URI.join( @server.sub("https://","http://"), "/clients/#{ping_key}/ping.scout?#{Time.now.to_i}")
 
       headers = {"x-scout-tty" => ($stdin.tty? ? 'true' : 'false')}
       if @history["plan_last_modified"] and @history["old_plugins"]
