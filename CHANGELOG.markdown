@@ -1,7 +1,6 @@
 # 5.5.9
 
 * Locking data file when writing.
-* Adding time to ping (testing caching)
 
 # 5.5.8
 
