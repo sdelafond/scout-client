@@ -9,9 +9,9 @@ Gem::Specification.new do |s|
   s.email = "support@scoutapp.com"
   s.rubyforge_project = "scout"
   s.homepage = "http://scoutapp.com"
-  s.summary = "Web-based monitoring, reporting, and alerting for your servers, clusters, and applications."
+  s.summary = "Scout is an easy-to-use hosted server monitoring service. The scout Ruby gem reports metrics to our service. The agent runs plugins, configured via the Scout web interface, to monitor a server."
   s.description = <<END_DESC
-Scout makes monitoring and reporting on your web applications as flexible and simple as possible.
+The scout gem reports metrics to scoutapp.com, an easy-to-use hosted server monitoring service.
 END_DESC
 
   s.rubyforge_project = "scout"
