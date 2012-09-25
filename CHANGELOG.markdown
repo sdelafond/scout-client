@@ -1,3 +1,7 @@
+# Master
+
+* Updated gem summary + description
+
 # 5.5.9
 
 * Locking data file when writing.
