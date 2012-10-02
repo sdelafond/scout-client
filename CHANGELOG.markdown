@@ -1,5 +1,6 @@
-# Master
+# 5.5.10
 
+* fixed SSL error on scout troubleshoot --post
 * Updated gem summary + description
 
 # 5.5.9

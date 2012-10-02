@@ -109,7 +109,7 @@ module Scout
         if url.is_a? URI::HTTPS
           http.use_ssl     = true
           http.ca_file     = File.join( File.dirname(__FILE__),
-                                        *%w[.. .. data cacert.pem] )
+                                        *%w[.. .. .. data cacert.pem] )
           http.verify_mode = OpenSSL::SSL::VERIFY_PEER |
                              OpenSSL::SSL::VERIFY_FAIL_IF_NO_PEER_CERT
         end
