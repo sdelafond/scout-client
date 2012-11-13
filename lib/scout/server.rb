@@ -27,7 +27,7 @@ module Scout
     attr_reader :client_key
 
     # Creates a new Scout Server connection.
-    def initialize(server, client_key, history_file, logger = nil, server_name=nil, http_proxy='', https_proxy='')
+    def initialize(server, client_key, history_file, logger = nil, server_name=nil, http_proxy='', https_proxy='', roles='')
       @server       = server
       @client_key   = client_key
       @history_file = history_file
@@ -35,7 +35,8 @@ module Scout
       @logger       = logger
       @server_name  = server_name
       @http_proxy   = http_proxy
-      @https_proxy   = https_proxy
+      @https_proxy  = https_proxy
+      @roles        = roles
       @plugin_plan  = []
       @plugins_with_signature_errors = []
       @directives   = {} # take_snapshots, interval, sleep_interval
@@ -90,6 +91,7 @@ module Scout
         url = urlify(:plan)
         info "Fetching plan from server at #{url}..."
         headers = {"x-scout-tty" => ($stdin.tty? ? 'true' : 'false')}
+        headers["x-scout-roles"] = @roles
 
         get(url, "Could not retrieve plan from server.", headers) do |res|
           begin

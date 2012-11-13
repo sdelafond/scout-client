@@ -30,7 +30,7 @@ PLUGINS_PROPERTIES = File.join AGENT_DIR, 'plugins.properties'
 PATH_TO_TEST_PLUGIN = File.expand_path( File.dirname(__FILE__) ) + '/plugins/temp_plugin.rb'
 
 class ScoutTest < Test::Unit::TestCase
-  def setup    
+  def setup
     load_fixtures :clients, :accounts, :plugins, :subscriptions, :plugin_metas
     clear_tables :plugin_activities, :ar_descriptors, :summaries
     clear_working_dir
@@ -591,7 +591,7 @@ mybar=100
       ActiveRecord::Base.store_full_sti_class = true
       ActiveRecord::Base.establish_connection(db_hash)
       # scout models and local models
-
+      require SCOUT_PATH + '/lib/enum.rb'
       require SINATRA_PATH + '/app/models/ar_models.rb'
 
       ActiveRecord::Base.default_timezone = :utc

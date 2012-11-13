@@ -30,8 +30,8 @@ module Scout
         opts.separator "--------------------------------------------------------------------------"
         opts.separator "  Normal checkin with server:"
         opts.separator "    #{program_name} [OPTIONS] CLIENT_KEY"
-        opts.separator "    ... OR ..."
-        opts.separator "    #{program_name} [OPTIONS] run CLIENT_KEY"
+        opts.separator "    ... or, specifying roles:"
+        opts.separator "    #{program_name} --roles app,db [ADDITIONAL OPTIONS] CLIENT_KEY"
         opts.separator "  Install:"
         opts.separator "    #{program_name}"
         opts.separator "    ... OR ..."
@@ -52,6 +52,12 @@ module Scout
         opts.separator " "
         opts.separator "Specific Options:"
         opts.separator "--------------------------------------------------------------------------"
+        opts.on( "-r", "--roles role1,role2", String,
+                 "Roles for this server. Roles are defined through scoutapp.com's web UI" ) do |roles|
+          options[:roles] = roles
+        end
+
+
         opts.on( "-s", "--server SERVER", String,
                  "The URL for the server to report to." ) do |url|
           options[:server] = url
@@ -155,6 +161,7 @@ module Scout
     end
 
     def initialize(options, args)
+      @roles   = options[:roles]
       @server  = options[:server]  || "https://scoutapp.com/"
       @history = options[:history] ||
                  File.join( File.join( (File.expand_path("~") rescue "/"),

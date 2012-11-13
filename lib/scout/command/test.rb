@@ -45,7 +45,7 @@ module Scout
           puts "== You haven't provided any options for running this plugin."
         end
 
-        Scout::Server.new(nil, nil, history, log, server_name, @http_proxy, @https_proxy) do |scout|
+        Scout::Server.new(nil, nil, history, log, server_name, @http_proxy, @https_proxy, nil) do |scout|
           scout.prepare_checkin
           scout.process_plugin( 'interval'  => 0,
                                 'plugin_id' => 1,

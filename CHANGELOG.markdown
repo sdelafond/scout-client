@@ -1,3 +1,7 @@
+# 5.6.0
+
+* added roles
+
 # 5.5.10
 
 * fixed SSL error on scout troubleshoot --post
