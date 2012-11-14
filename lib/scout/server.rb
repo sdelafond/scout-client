@@ -91,7 +91,7 @@ module Scout
         url = urlify(:plan)
         info "Fetching plan from server at #{url}..."
         headers = {"x-scout-tty" => ($stdin.tty? ? 'true' : 'false')}
-        headers["x-scout-roles"] = @roles
+        headers["x-scout-roles"] = @roles || ""
 
         get(url, "Could not retrieve plan from server.", headers) do |res|
           begin
