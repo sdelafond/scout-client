@@ -36,7 +36,7 @@ module Scout
       @server_name  = server_name
       @http_proxy   = http_proxy
       @https_proxy  = https_proxy
-      @roles        = roles || ''
+      @roles        = (roles || '').gsub(/[^a-zA-Z0-9,]/,'')
       @plugin_plan  = []
       @plugins_with_signature_errors = []
       @directives   = {} # take_snapshots, interval, sleep_interval
@@ -60,10 +60,9 @@ module Scout
     def refresh?
       return true if !ping_key or account_public_key_changed? # fetch the plan again if the account key is modified/created
 
-      url=URI.join( @server.sub("https://","http://"), "/clients/#{ping_key}/ping.scout")
+      url=URI.join( @server.sub("https://","http://"), "/clients/#{ping_key}/ping.scout?roles=#{@roles}&host=#{Socket.gethostname}")
 
       headers = {"x-scout-tty" => ($stdin.tty? ? 'true' : 'false')}
-      headers["x-scout-roles"] = @roles
       if @history["plan_last_modified"] and @history["old_plugins"]
         headers["If-Modified-Since"] = @history["plan_last_modified"]
       end

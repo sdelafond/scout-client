@@ -28,7 +28,8 @@ module Scout
       URI.join(@server,
                "/clients/CLIENT_KEY/#{url_name}.scout".
                    gsub(/\bCLIENT_KEY\b/, @client_key).
-                   gsub(/\b[A-Z_]+\b/) { |k| options[k.downcase.to_sym] || k })
+                   gsub(/\b[A-Z_]+\b/) { |k| options[k.downcase.to_sym] || k },
+               "?roles=#{@roles}&host=#{Socket.gethostname}")
     end
 
     def post(url, error, body, headers = Hash.new, &response_handler)

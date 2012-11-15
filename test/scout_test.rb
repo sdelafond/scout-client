@@ -31,8 +31,8 @@ PATH_TO_TEST_PLUGIN = File.expand_path( File.dirname(__FILE__) ) + '/plugins/tem
 
 class ScoutTest < Test::Unit::TestCase
   def setup
-    load_fixtures :clients, :accounts, :plugins, :subscriptions, :plugin_metas
-    clear_tables :plugin_activities, :ar_descriptors, :summaries
+    load_fixtures :clients, :accounts, :plugins, :subscriptions, :plugin_metas, :roles, :plugin_definitions, :notification_groups
+    clear_tables :plugin_activities, :ar_descriptors, :summaries, :clients_roles
     clear_working_dir
     
 
@@ -45,6 +45,12 @@ class ScoutTest < Test::Unit::TestCase
     @plugin=@client.plugins.first
     # avoid client limit issues
     assert @client.account.subscription.update_attribute(:clients,100)
+
+    # roles-related
+    @roles_account = Account.find_by_name "beta"
+    @db_role=@roles_account.roles.find_by_name("db")
+    @app_role=@roles_account.roles.find_by_name("app")
+    @hostname = `hostname`.chomp
   end
 
   def test_should_checkin_during_interactive_install
@@ -501,6 +507,62 @@ mybar=100
     assert_in_delta Time.now.to_i, streams.last[:plugins][0][:fields][:v], 5, "should be within a few seconds of now"
     assert_in_delta Time.now.to_i, streams.first[:plugins][0][:fields][:v], 5, "should be within a few seconds of now"
     assert_not_equal streams.first[:plugins][0][:fields][:v], streams.last[:plugins][0][:fields][:v]
+  end
+
+
+  # Roles related
+
+  def test_roles_enabled_account
+    scout(@roles_account.key)
+    client=@roles_account.clients.last
+    assert_equal @hostname, client.hostname
+    assert_equal 0, client.plugins.count, "the all servers role should have 0 plugins"
+    assert_equal 1, client.roles.count
+    assert_equal @roles_account.primary_role, client.roles.first
+  end
+
+  def test_specify_role
+    scout(@roles_account.key, "-rapp")
+    client=@roles_account.clients.last
+    assert_equal @hostname, client.hostname
+    assert_equal 2, client.plugins.count
+    assert_equal 2, client.roles.count
+  end
+
+  def test_change_roles_on_existing_server
+    # first checkin
+    exec_scout(@roles_account.key, "-rapp")
+    client=@roles_account.clients.last
+    assert_equal @hostname, client.hostname
+    assert_equal 2, client.roles.count
+    assert_equal 2, client.plugins.count
+
+    client.plugins.each do |plugin|
+      assert @app_role.plugin_definitions.include?(plugin.plugin_definition), "#{plugin} should be included in the app role"
+    end
+
+    # second checkin - add a role
+    exec_scout(@roles_account.key, "-rapp,db --force")
+    client=@roles_account.clients.last
+    assert_equal 3, client.roles.count
+    assert_equal 4, client.plugins.count
+
+    # 3rd checkin - remove a role
+    exec_scout(@roles_account.key, "-rdb --force")
+    client=@roles_account.clients.last
+    assert_equal 2, client.roles.count
+    assert_equal 2, client.plugins.count
+
+    client.plugins.each do |plugin|
+      assert @db_role.plugin_definitions.include?(plugin.plugin_definition), "#{plugin} should be included in the db role"
+    end
+
+    # 4th checking -- remove all roles
+    exec_scout(@roles_account.key, "--force")
+    client=@roles_account.clients.last
+    assert_equal 1, client.roles.count
+    assert_equal 0, client.plugins.count
+
   end
 
   ######################
