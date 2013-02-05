@@ -17,8 +17,13 @@ module Scout
           log.info "Sleeping #{@scout.sleep_interval} sec" if log
           sleep @scout.sleep_interval
         end
-        
-        @scout.fetch_plan
+
+        begin
+          @scout.fetch_plan
+        rescue SystemExit => e
+          puts "Failure. Run with '-v -ldebug' for more information" if $stdin.tty?
+          raise e
+        end
 
         # Spawn or stop streamer as needed
         if @scout.streamer_command.is_a?(String)
@@ -40,9 +45,16 @@ module Scout
           elsif @force
             log.info("overriding checkin schedule with --force and checking in now.") if log
           end
-          create_pid_file_or_exit
-          @scout.run_plugins_by_plan
-          @scout.save_history
+
+          begin
+            create_pid_file_or_exit
+            @scout.run_plugins_by_plan
+            @scout.save_history
+            puts "Successfully reported to #{server}" if $stdin.tty?
+          rescue SystemExit => e
+            puts "Failure. Run with '-v -ldebug' for more information" if $stdin.tty?
+            raise e
+          end
 
           begin
             # Since this is a new checkin, overwrite the existing log

@@ -4,32 +4,41 @@
 
 ## Installing
 
-Install the Scout gem:
+Scout requires Ruby, and is installed via Ruby Gems:
 
     $ gem install scout
 
-Then simply run:
 
-    $ scout
+## First run from the command line:
 
-to start the installation wizard. You'll need your server key, provided via Scout's web UI, to continue. Scout's web UI also provides additional troubleshooting and Ruby installation instructions.
+    $ scout KEY
 
-## Running the Scout Agent
+`KEY` is the identification key assigned by your account at http://scoutapp.com. When run from the command line, scout should print "success." If not, run in verbose mode to see what the problem is:
 
-The Scout agent has several modes of operation and commands.  The normal, intended usage is through a scheduled interval with no output.
+    $ scout KEY -v
 
-Normal checkin with server:
 
-    $ scout [OPTIONS] SERVER_KEY
+## Scout is normally run through cron
 
-`SERVER_KEY` is the identification key assigned by your account at http://scoutapp.com.
+After you've successfully run Scout from the command line, you should configure it to run every minute via cron. This is how Scout is designed to run on an ongoing basis. Your contab will typically look like this:
 
-Install:
+    * * * * *  deploy /usr/bin/scout KEY
 
-    $ scout
-    $ scout [OPTIONS] install
-    
-Local plugin testing:
+... assuming you are using the global crontab, and "deploy" is the user running Scout.
+
+
+## For a full list of options:
+
+    $ scout --help
+
+## Troubleshooting
+
+The `scout troubleshoot` command provides useful troubleshooting information (log of the last run, environment information, and the list of gems).
+
+Extensive help is available via our website (http://scoutapp.com) and while installing the agent via the Scout web UI.
+
+
+## Local plugin testing:
 
     $ scout [OPTIONS] test PATH_TO_PLUGIN [PLUGIN_OPTIONS]
 
@@ -38,24 +47,8 @@ Local plugin testing:
 `PLUGIN_OPTIONS` are one or more options in the form:
 
     key1=val1 key2=val2
-    
+
 These options will be used for the plugin run. [Lean more about creating your own plugins](https://scoutapp.com/info/creating_a_plugin).
-
-For a full list of options:
-
-    scout --help
-
-## Setting up in Cron
-
-Configure Scout to run every minute. Typically, this will look like:
-
-    * * * * *  deploy /usr/bin/scout SERVER_KEY
-    
-## Troubleshooting
-
-The `scout troubleshoot` command provides useful troubleshooting information (log of the last run, environment information, and the list of gems).
-
-Extensive help is available via our website (http://scoutapp.com) and while installing the agent via the Scout web UI.
 
 ## Credits / Contact
 

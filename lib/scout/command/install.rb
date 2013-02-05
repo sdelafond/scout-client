@@ -11,12 +11,9 @@ module Scout
         puts <<-END_INTRO.gsub(/^ {8}/, "")
         === Scout Installation Wizard ===
 
-        You need the Server Key displayed in the Server Settings tab.
-        It looks like:
+        You need the 40-character alphanumeric key displayed on the account page.
 
-          6ecad322-0d17-4cb8-9b2c-a12c4541853f
-
-        Enter the Server Key:
+        Enter the Key:
         END_INTRO
         key = gets.to_s.strip
 

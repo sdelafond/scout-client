@@ -67,7 +67,7 @@ class ScoutTest < Test::Unit::TestCase
     res=""
     PTY.spawn("bin/scout -s http://localhost:4567 -d #{PATH_TO_DATA_FILE} install ") do | stdin, stdout, pid |
       begin
-        stdin.expect("Enter the Server Key:", 3) do |response|
+        stdin.expect("Enter the Key:", 3) do |response|
           assert_not_nil response, "Agent didn't print prompt for server key"
           stdout.puts @client.key # feed the agent the key
           res=stdin.read.lstrip
