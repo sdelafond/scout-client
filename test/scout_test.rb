@@ -29,6 +29,15 @@ AGENT_LOG = File.join AGENT_DIR, 'latest_run.log'
 PLUGINS_PROPERTIES = File.join AGENT_DIR, 'plugins.properties'
 PATH_TO_TEST_PLUGIN = File.expand_path( File.dirname(__FILE__) ) + '/plugins/temp_plugin.rb'
 
+
+# This is a super simple shim to provide the two methods we use in delayed_job's API:
+# some_ar_instance.delay.some_method, and some_ar_class.delay.some_class_method
+class ActiveRecord::Base
+  def delay; self; end
+  def self.delay; self; end
+end
+
+
 class ScoutTest < Test::Unit::TestCase
   def setup
     load_fixtures :clients, :accounts, :plugins, :subscriptions, :plugin_metas, :roles, :plugin_definitions, :notification_groups
@@ -557,12 +566,6 @@ mybar=100
       assert @db_role.plugin_definitions.include?(plugin.plugin_definition), "#{plugin} should be included in the db role"
     end
 
-    # 4th checking -- remove all roles
-    exec_scout(@roles_account.key, "--force")
-    client=@roles_account.clients.last
-    assert_equal 1, client.roles.count
-    assert_equal 0, client.plugins.count
-
   end
 
   ######################
@@ -580,7 +583,7 @@ mybar=100
   end
   
   # Runs the scout command with the given +key+ and options. Returns output from the latest run.
-  # Example: scout(KEY,'-F', '-v -l debug'). 
+  # Example: scout(KEY,'-F', '-v', '-l', 'debug').
   # 
   # Notes:
   # * This runs Scout in the test process - it means exit handlers and spawning processes (for streaming) can't 
@@ -595,6 +598,7 @@ mybar=100
     args += ['-s','http://localhost:4567']
     args += ['-d', PATH_TO_DATA_FILE]
     args += opts if opts.any?
+    # args += ['-v', '-l', 'debug'] # if you want to debug
     Scout::Command.dispatch(args)
     File.read(AGENT_LOG) if File.exist?(AGENT_LOG)
   end
