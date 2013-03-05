@@ -40,7 +40,7 @@ end
 
 class ScoutTest < Test::Unit::TestCase
   def setup
-    load_fixtures :clients, :accounts, :plugins, :subscriptions, :plugin_metas, :roles, :plugin_definitions, :notification_groups
+    load_fixtures :clients, :accounts, :plugins, :subscriptions, :plugin_metas, :roles, :plugin_templates, :notification_groups
     clear_tables :plugin_activities, :ar_descriptors, :summaries, :clients_roles
     clear_working_dir
     
@@ -547,7 +547,7 @@ mybar=100
     assert_equal 2, client.plugins.count
 
     client.plugins.each do |plugin|
-      assert @app_role.plugin_definitions.include?(plugin.plugin_definition), "#{plugin} should be included in the app role"
+      assert @app_role.plugin_templates.include?(plugin.plugin_definition), "#{plugin} should be included in the app role"
     end
 
     # second checkin - add a role
@@ -563,7 +563,7 @@ mybar=100
     assert_equal 2, client.plugins.count
 
     client.plugins.each do |plugin|
-      assert @db_role.plugin_definitions.include?(plugin.plugin_definition), "#{plugin} should be included in the db role"
+      assert @db_role.plugin_templates.include?(plugin.plugin_definition), "#{plugin} should be included in the db role"
     end
 
   end
