@@ -598,7 +598,7 @@ mybar=100
     args += ['-s','http://localhost:4567']
     args += ['-d', PATH_TO_DATA_FILE]
     args += opts if opts.any?
-     args += ['-v', '-l', 'debug'] # if you want to debug
+    # args += ['-v', '-l', 'debug'] # if you want to debug
     Scout::Command.dispatch(args)
     File.read(AGENT_LOG) if File.exist?(AGENT_LOG)
   end
