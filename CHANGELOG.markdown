@@ -1,3 +1,7 @@
+# 5.6.1
+
+* send role names exactly as the user entered - makes it easier to debug role name issues
+
 # 5.6.0
 
 * added roles

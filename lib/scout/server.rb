@@ -36,7 +36,7 @@ module Scout
       @server_name  = server_name
       @http_proxy   = http_proxy
       @https_proxy  = https_proxy
-      @roles        = (roles || '').gsub(/[^a-zA-Z0-9,]/,'')
+      @roles        = roles || ''
       @plugin_plan  = []
       @plugins_with_signature_errors = []
       @directives   = {} # take_snapshots, interval, sleep_interval
