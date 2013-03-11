@@ -51,7 +51,7 @@ module Scout
       end
 
       def extract_code_class(code)
-        match = /class\s\b(\w*)\s+?<\s+Scout::Plugin/.match(code)
+        match = /class\s\b(\w*)\s*?<\s*Scout::Plugin/.match(code)
 
         if match
           return match[1]
