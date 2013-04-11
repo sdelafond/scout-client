@@ -1,3 +1,11 @@
+# 5.6.3
+
+* Removing $VERBOSE = true
+
+# 5.6.2
+
+* More forgiving regex to extract the code class when streaming.
+
 # 5.6.1
 
 * send role names exactly as the user entered - makes it easier to debug role name issues
