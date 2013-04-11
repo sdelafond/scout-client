@@ -27,7 +27,7 @@ module Scout
 
       info("Streamer PID=#{$$} starting")
 
-      hostname=Socket.gethostname
+      fqdn=`hostname -f`
 
       # load plugin history
       load_history
@@ -72,7 +72,7 @@ module Scout
                      :class=>plugin_hash['code_class']}
         end
 
-        bundle={:hostname=>hostname,
+        bundle={:hostname=>fqdn,
                  :server_time=>Time.now.strftime("%I:%M:%S %p"),
                  :num_processes=>`ps -e | wc -l`.chomp.to_i,
                  :plugins=>plugins }

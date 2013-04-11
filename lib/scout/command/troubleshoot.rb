@@ -28,6 +28,7 @@ module Scout
 
         heading "Scout Info"
         bullet "Hostname", Socket.gethostname
+        bullet "FQDN", @fqdn
         bullet "History file", history
         bullet "Version", Scout::VERSION
 

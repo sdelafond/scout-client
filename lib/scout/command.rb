@@ -87,6 +87,10 @@ module Scout
                  "Optional https proxy for SSL traffic." ) do |https_proxy|
           options[:https_proxy] = https_proxy
         end
+        opts.on("--fqdn FQDN", String,
+                "Optional fully qualified domain name override." ) do |fqdn|
+          options[:fqdn] = fqdn
+        end
 
         opts.separator " "
         opts.separator "Common Options:"
@@ -173,6 +177,7 @@ module Scout
       @server_name    = options[:server_name]
       @http_proxy     = options[:http_proxy] || ""
       @https_proxy    = options[:https_proxy] || ""
+      @fqdn           = options[:fqdn] || `hostname -f`
 
       @options = options
       @args    = args
@@ -185,7 +190,7 @@ module Scout
 
     end
 
-    attr_reader :server, :history, :config_dir, :log_path, :server_name
+    attr_reader :server, :history, :config_dir, :log_path, :server_name, :fqdn
 
 
     def verbose?

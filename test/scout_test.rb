@@ -60,6 +60,7 @@ class ScoutTest < Test::Unit::TestCase
     @db_role=@roles_account.roles.find_by_name("db")
     @app_role=@roles_account.roles.find_by_name("app")
     @hostname = `hostname`.chomp
+    @fqdn = `hostname -f`.chomp
   end
 
   def test_should_checkin_during_interactive_install
@@ -568,6 +569,20 @@ mybar=100
 
   end
 
+  def test_fqdn
+    scout(@roles_account.key)
+    client=@roles_account.clients.last
+    assert_equal @fqdn, client.fqdn
+  end
+
+  def test_fqdn_override
+    fqdn_override="app1.production.foobar.com"
+    scout(@roles_account.key, "--fqdn", fqdn_override)
+    client=@roles_account.clients.last
+    assert_equal fqdn_override, client.fqdn
+  end
+
+
   ######################
   ### Helper Methods ###
   ######################
@@ -612,7 +627,7 @@ mybar=100
   # you can use this, but you have to create the plugin file and clean up afterwards.
   # Or, you can use the blog version below
   def scout_test(path_to_test_plugin, opts = String.new)
-    `bin/scout test #{path_to_test_plugin} -d #{PATH_TO_DATA_FILE} #{opts}`
+    `bin/scout test #{path_to_test_plugin} -d #{PATH_TO_DATA_FILE} #{opts} -v -ldebug`
   end
 
   # The preferred way to test the agent in test mode. This creates a plugin file with the code you provide,

@@ -29,7 +29,7 @@ module Scout
                "/clients/CLIENT_KEY/#{url_name}.scout".
                    gsub(/\bCLIENT_KEY\b/, @client_key).
                    gsub(/\b[A-Z_]+\b/) { |k| options[k.downcase.to_sym] || k },
-               "?roles=#{@roles}&hostname=#{Socket.gethostname}&tty=#{$stdin.tty? ? 'y' : 'n'}")
+               "?roles=#{@roles}&fqdn=#{@fqdn}&tty=#{$stdin.tty? ? 'y' : 'n'}")
     end
 
     def post(url, error, body, headers = Hash.new, &response_handler)

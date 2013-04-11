@@ -1,3 +1,7 @@
+# 5.6.4
+
+* send FQDN in addition to hostname, and provide an override
+
 # 5.6.3
 
 * Removing $VERBOSE = true
