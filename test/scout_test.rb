@@ -547,7 +547,7 @@ mybar=100
     assert_equal 2, client.plugins.count
 
     client.plugins.each do |plugin|
-      assert @app_role.plugin_templates.include?(plugin.plugin_definition), "#{plugin} should be included in the app role"
+      assert @app_role.plugin_templates.include?(plugin.plugin_template), "#{plugin} should be included in the app role"
     end
 
     # second checkin - add a role
@@ -563,7 +563,7 @@ mybar=100
     assert_equal 2, client.plugins.count
 
     client.plugins.each do |plugin|
-      assert @db_role.plugin_templates.include?(plugin.plugin_definition), "#{plugin} should be included in the db role"
+      assert @db_role.plugin_templates.include?(plugin.plugin_template), "#{plugin} should be included in the db role"
     end
 
   end
