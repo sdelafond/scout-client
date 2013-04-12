@@ -177,7 +177,7 @@ module Scout
       @server_name    = options[:server_name]
       @http_proxy     = options[:http_proxy] || ""
       @https_proxy    = options[:https_proxy] || ""
-      @fqdn           = options[:fqdn] || `hostname -f`
+      @fqdn           = (options[:fqdn] || `hostname -f`).chomp
 
       @options = options
       @args    = args

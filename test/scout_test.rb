@@ -582,6 +582,12 @@ mybar=100
     assert_equal fqdn_override, client.fqdn
   end
 
+  def test_fqdn_has_newline
+    scout(@roles_account.key, "--fqdn", "db-1.foobar.com\n")
+    client=@roles_account.clients.last
+    assert_equal "db-1.foobar.com", client.fqdn
+  end
+
 
   ######################
   ### Helper Methods ###
