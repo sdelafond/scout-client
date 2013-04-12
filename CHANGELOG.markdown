@@ -1,6 +1,6 @@
-# 5.6.4
+# 5.6.5
 
-* remove newline from FQDN 
+* remove newline from FQDN
 
 # 5.6.4
 
