@@ -1,3 +1,7 @@
+# 5.6.6
+
+* Fix for urlify query string in Ruby 1.8.6.
+
 # 5.6.5
 
 * remove newline from FQDN

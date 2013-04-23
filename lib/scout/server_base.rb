@@ -25,11 +25,12 @@ module Scout
     def urlify(url_name, options = Hash.new)
       return unless @server
       options.merge!(:client_version => Scout::VERSION)
-      URI.join(@server,
+      uri = URI.join(@server,
                "/clients/CLIENT_KEY/#{url_name}.scout".
                    gsub(/\bCLIENT_KEY\b/, @client_key).
-                   gsub(/\b[A-Z_]+\b/) { |k| options[k.downcase.to_sym] || k },
-               "?roles=#{@roles}&fqdn=#{URI.encode(@fqdn)}&tty=#{$stdin.tty? ? 'y' : 'n'}")
+                   gsub(/\b[A-Z_]+\b/) { |k| options[k.downcase.to_sym] || k })
+      uri.query = ["roles=#{@roles}","fqdn=#{URI.encode(@fqdn)}","tty=#{$stdin.tty? ? 'y' : 'n'}"].join('&')
+      uri
     end
 
     def post(url, error, body, headers = Hash.new, &response_handler)
