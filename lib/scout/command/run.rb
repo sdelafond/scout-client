@@ -7,10 +7,10 @@ module Scout
         key = @args.first
         # TODO: this is an awkward way to force creation of the config directory. Could use a little refactoring.
         configuration_directory = config_dir
-        log.debug("Running Scout [#{Scout::VERSION}] on #{@fqdn}") if log
+        log.debug("Running Scout [#{Scout::VERSION}] on #{@hostname}") if log
         log.debug("Configuration directory is #{configuration_directory} ") if log
         # TODO: too much external logic of command doing things TO server. This should be moved into the server class.
-        @scout = Scout::Server.new(server, key, history, log, server_name, @http_proxy, @https_proxy, @roles, fqdn)
+        @scout = Scout::Server.new(server, key, history, log, server_name, @http_proxy, @https_proxy, @roles, @hostname)
         @scout.load_history
         
         unless $stdin.tty?
@@ -29,7 +29,7 @@ module Scout
         if @scout.streamer_command.is_a?(String)
           if @scout.streamer_command.start_with?("start")
             log.info "streamer command: start"
-            Scout::StreamerDaemon.start_daemon(history, @scout.streamer_command)
+            Scout::StreamerDaemon.start_daemon(history, @scout.streamer_command, @hostname)
           elsif @scout.streamer_command == "stop"
             log.info "streamer command: stop"
             Scout::StreamerDaemon.stop_daemon(history)

@@ -10,8 +10,7 @@ module Scout
   class Command
     class APITimeoutError < RuntimeError; end
 
-    HTTP_HEADERS = { "Client-Version"  => Scout::VERSION,
-                     "Client-Hostname" => Socket.gethostname}
+    HTTP_HEADERS = { "Client-Version"  => Scout::VERSION }
 
     class Troubleshoot < Command
       
@@ -27,8 +26,7 @@ module Scout
         puts "Gathering troubleshooting information about your Scout install ... "
 
         heading "Scout Info"
-        bullet "Hostname", Socket.gethostname
-        bullet "FQDN", @fqdn
+        bullet "Hostname", @hostname
         bullet "History file", history
         bullet "Version", Scout::VERSION
 

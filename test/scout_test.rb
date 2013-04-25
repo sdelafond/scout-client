@@ -60,7 +60,6 @@ class ScoutTest < Test::Unit::TestCase
     @db_role=@roles_account.roles.find_by_name("db")
     @app_role=@roles_account.roles.find_by_name("app")
     @hostname = `hostname`.chomp
-    @fqdn = `hostname -f`.chomp
   end
 
   def test_should_checkin_during_interactive_install
@@ -416,7 +415,7 @@ mybar=100
       scout(@client.key) # to write the initial history file. Sinatra MUST be running
       $continue_streaming = true # so the streamer will run once
       # for debugging, make last arg Logger.new(STDOUT)
-      Scout::Streamer.new(PATH_TO_DATA_FILE,"bogus_streaming_key","a","b","c",[@client.plugins.first.id]+plugins.map(&:id),nil)
+      Scout::Streamer.new(PATH_TO_DATA_FILE,"bogus_streaming_key","a","b","c",[@client.plugins.first.id]+plugins.map(&:id),"blade",nil)
     end
 
     streams = Pusher::Channel.streamer_data  # set by the mock_pusher call
@@ -446,7 +445,7 @@ mybar=100
     mock_pusher do
       $continue_streaming = true # so the streamer will run once
       # for debugging, make last arg Logger.new(STDOUT)
-      Scout::Streamer.new(PATH_TO_DATA_FILE,"bogus_streaming_key","a","b","c",[@client.plugins.first.id],nil)
+      Scout::Streamer.new(PATH_TO_DATA_FILE,"bogus_streaming_key","a","b","c",[@client.plugins.first.id],"blade",nil)
     end
     streams = Pusher::Channel.streamer_data  # set by the mock_pusher call
     assert streams.is_a?(Array)
@@ -491,7 +490,7 @@ mybar=100
       exec_scout(@client.key)
       #puts YAML.load(File.read(PATH_TO_DATA_FILE))['memory'].to_yaml
       # for debugging, make last arg Logger.new(STDOUT)
-      Scout::Streamer.new(PATH_TO_DATA_FILE,"bogus_streaming_key","a","b","c",[plugin.id],nil)
+      Scout::Streamer.new(PATH_TO_DATA_FILE,"bogus_streaming_key","a","b","c",[plugin.id],"blade",nil)
     end
 
     streams = Pusher::Channel.streamer_data  # set by the mock_pusher call
@@ -506,7 +505,7 @@ mybar=100
       plugin = create_plugin(@client, "caching plugin", PLUGIN_FIXTURES[:caching][:code], PLUGIN_FIXTURES[:caching][:sig])
       exec_scout(@client.key)
       # for debugging, make last arg Logger.new(STDOUT)
-      Scout::Streamer.new(PATH_TO_DATA_FILE,"bogus_streaming_key","a","b","c",[plugin.id],nil)
+      Scout::Streamer.new(PATH_TO_DATA_FILE,"bogus_streaming_key","a","b","c",[plugin.id],"blade",nil)
     end
 
     streams = Pusher::Channel.streamer_data  # set by the mock_pusher call
@@ -569,23 +568,11 @@ mybar=100
 
   end
 
-  def test_fqdn
-    scout(@roles_account.key)
+  def test_hostname_override
+    hostname_override="app1.production.foobar.com"
+    scout(@roles_account.key, "--hostname", hostname_override)
     client=@roles_account.clients.last
-    assert_equal @fqdn, client.fqdn
-  end
-
-  def test_fqdn_override
-    fqdn_override="app1.production.foobar.com"
-    scout(@roles_account.key, "--fqdn", fqdn_override)
-    client=@roles_account.clients.last
-    assert_equal fqdn_override, client.fqdn
-  end
-
-  def test_fqdn_has_newline
-    scout(@roles_account.key, "--fqdn", "db-1.foobar.com\n")
-    client=@roles_account.clients.last
-    assert_equal "db-1.foobar.com", client.fqdn
+    assert_equal hostname_override, client.hostname
   end
 
 
@@ -722,7 +709,7 @@ mybar=100
   def create_plugin(client,name, code, signature)
     p=client.plugins.create(:name=>name)
     PluginMeta.create(:plugin=>p)
-    p.meta.code=code
+    p.reload.meta.code=code
     p.code_md5_signature=Digest::MD5.hexdigest(code)
     p.signature=signature
     p.save

@@ -9,7 +9,7 @@ module Scout
 
     # * history_file is the *path* to the history file
     # * plugin_ids is an array of integers
-    def initialize(history_file, streaming_key, p_app_id, p_key, p_secret, plugin_ids, logger = nil)
+    def initialize(history_file, streaming_key, p_app_id, p_key, p_secret, plugin_ids, hostname, logger = nil)
       @@continue_streaming = true
       @history_file = history_file
       @history      = Hash.new
@@ -26,8 +26,6 @@ module Scout
       streamer_start_time = Time.now
 
       info("Streamer PID=#{$$} starting")
-
-      fqdn=`hostname -f`
 
       # load plugin history
       load_history
@@ -72,7 +70,7 @@ module Scout
                      :class=>plugin_hash['code_class']}
         end
 
-        bundle={:hostname=>fqdn,
+        bundle={:hostname=>hostname,
                  :server_time=>Time.now.strftime("%I:%M:%S %p"),
                  :num_processes=>`ps -e | wc -l`.chomp.to_i,
                  :plugins=>plugins }

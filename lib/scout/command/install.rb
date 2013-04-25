@@ -19,7 +19,7 @@ module Scout
 
         puts "\nAttempting to contact the server..."
         begin
-          Scout::Server.new(server, key, history, log, server_name, @http_proxy, @https_proxy, @roles, fqdn) do |scout|
+          Scout::Server.new(server, key, history, log, server_name, @http_proxy, @https_proxy, @roles, @hostname) do |scout|
             scout.fetch_plan
             scout.run_plugins_by_plan
           end

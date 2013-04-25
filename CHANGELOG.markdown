@@ -1,3 +1,8 @@
+# 5.6.7
+
+* changed fqdn override to hostname override. We no longer send fqdn.
+* hostname is now send exclusively in the URL -- it is no longer sent in the HTTP headers
+
 # 5.6.6
 
 * Fix for urlify query string in Ruby 1.8.6.
