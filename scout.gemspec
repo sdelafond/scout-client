@@ -23,5 +23,5 @@ END_DESC
 
   # specify any dependencies here; for example:
   # s.add_development_dependency "rspec"
-  s.add_runtime_dependency "elif"
+  s.add_runtime_dependency ["elif", "json_pure"]
 end
