@@ -1,3 +1,7 @@
+# 5.6.8
+
+* Updated JSON to 1.8.0
+
 # 5.6.7
 
 * changed fqdn override to hostname override. We no longer send fqdn.
