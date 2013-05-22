@@ -16,10 +16,7 @@ module Scout
 
         puts "\nAttempting to contact the server..."
         begin
-          Scout::Server.new(server, key, history, log, server_name, @http_proxy, @https_proxy, @roles, @hostname) do |scout|
-            scout.fetch_plan
-            scout.run_plugins_by_plan
-          end
+          test_server_connection(key)
 
           create_cron_script(key) if cron_script_required?
 
@@ -85,6 +82,8 @@ module Scout
         end
 
         def cron_script_required?
+          puts "namespaced rvm? #{Scout::Environment.rvm?}"
+          puts "bundler? #{Environment.bundler?}"
           Environment.rvm? || Environment.bundler?
         end
 
@@ -95,6 +94,13 @@ module Scout
           Enter the Key:
           END_GET_KEY
           key = gets.to_s.strip
+        end
+
+        def test_server_connection(key)
+          Scout::Server.new(server, key, history, log, server_name, @http_proxy, @https_proxy, @roles, @hostname) do |scout|
+            scout.fetch_plan
+            scout.run_plugins_by_plan
+          end
         end
     end
   end

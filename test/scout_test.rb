@@ -19,6 +19,7 @@ require 'test/unit'
 $LOAD_PATH << File.expand_path( File.dirname(__FILE__) + '/../lib' )
 $LOAD_PATH << File.expand_path( File.dirname(__FILE__) + '/..' )
 require 'lib/scout'
+require 'mocha'
 
 
 SCOUT_PATH = '../scout'
@@ -64,7 +65,19 @@ class ScoutTest < Test::Unit::TestCase
 
   def test_should_checkin_during_interactive_install
     Client.update_all "last_checkin=null"
-    res=""
+    PTY.spawn("bin/scout install #{@client.key} -s http://localhost:4567 -d #{PATH_TO_DATA_FILE}") do | stdin, stdout, pid |
+      begin
+        assert_not_nil stdin.expect(/Attempting to contact the server.+Success!/m, 3), "Output from interactive install session isn't right"
+      rescue Errno::EIO
+        nil
+      end
+    end
+
+    assert_in_delta Time.now.utc.to_i, @client.reload.last_ping.to_i, 100
+    assert_in_delta Time.now.utc.to_i, @client.reload.last_checkin.to_i, 100  
+  end
+
+  def test_prompts_the_user_for_a_key_if_none_is_provided
     PTY.spawn("bin/scout -s http://localhost:4567 -d #{PATH_TO_DATA_FILE} install ") do | stdin, stdout, pid |
       begin
         stdin.expect("Enter the Key:", 3) do |response|
@@ -76,11 +89,6 @@ class ScoutTest < Test::Unit::TestCase
         # don't care
       end
     end
-
-    assert res.match(/Attempting to contact the server.+Success!/m), "Output from interactive install session isn't right"
-
-    assert_in_delta Time.now.utc.to_i, @client.reload.last_ping.to_i, 100
-    assert_in_delta Time.now.utc.to_i, @client.reload.last_checkin.to_i, 100  
   end
   
   def test_should_run_first_time
@@ -573,6 +581,31 @@ mybar=100
     scout(@roles_account.key, "--hostname", hostname_override)
     client=@roles_account.clients.last
     assert_equal hostname_override, client.hostname
+  end
+
+  def test_create_cron_script
+    # should create the cron script file if RVM OR BUNDLER are used
+  end
+
+  def test_generate_rvm_bundler_cron_command
+  end
+
+  def test_generate_non_rvm_bundler_cron_command
+    puts Scout::Environment.rvm?
+    Scout::Environment.stubs(:rvm?).returns(false)
+    Scout::Environment.stubs(:bundler?).returns(false)
+    puts Scout::Environment.rvm?
+    PTY.spawn("bin/scout install #{@client.key} -s http://localhost:4567 -d #{PATH_TO_DATA_FILE}") do | stdin, stdout, pid |
+      begin
+        puts "* * * * * #{File.expand_path(SCOUT_PATH)}"
+        #res = stdin.expect(/\* \* \* \* \* #{File.expand_path(SCOUT_PATH)}/, 3)
+        res = stdin.expect(/visit/i, 3)
+        puts res
+        #assert_not_nil stdin.expect(/\* \* \* \* \* /usr/local/scout #{@client.key}/, 3), "Incorrect or missing cron command generated"
+      rescue Errno::EIO
+        nil
+      end
+    end
   end
 
 
