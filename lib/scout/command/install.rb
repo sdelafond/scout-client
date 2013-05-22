@@ -6,7 +6,7 @@ module Scout
       def run
         create_pid_file_or_exit
 
-        abort usage unless $stdin.tty?
+        abort usage unless $stdin.tty? || @args.first
         
         puts <<-END_INTRO.gsub(/^ {8}/, "")
         === Scout Installation Wizard ===
@@ -71,6 +71,7 @@ module Scout
               file.puts "scout #{key}"
             end
           end
+          File.chmod(0774, cron_script)
         end
 
         def cron_command(key)
@@ -82,8 +83,6 @@ module Scout
         end
 
         def cron_script_required?
-          puts "namespaced rvm? #{Scout::Environment.rvm?}"
-          puts "bundler? #{Environment.bundler?}"
           Environment.rvm? || Environment.bundler?
         end
 

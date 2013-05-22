@@ -65,16 +65,10 @@ class ScoutTest < Test::Unit::TestCase
 
   def test_should_checkin_during_interactive_install
     Client.update_all "last_checkin=null"
-    PTY.spawn("bin/scout install #{@client.key} -s http://localhost:4567 -d #{PATH_TO_DATA_FILE}") do | stdin, stdout, pid |
-      begin
-        assert_not_nil stdin.expect(/Attempting to contact the server.+Success!/m, 3), "Output from interactive install session isn't right"
-      rescue Errno::EIO
-        nil
-      end
-    end
+    Scout::Command::Install.new({:server => 'http://localhost:4567', :history => PATH_TO_DATA_FILE},[@client.key]).run
 
     assert_in_delta Time.now.utc.to_i, @client.reload.last_ping.to_i, 100
-    assert_in_delta Time.now.utc.to_i, @client.reload.last_checkin.to_i, 100  
+    assert_in_delta Time.now.utc.to_i, @client.reload.last_checkin.to_i, 100
   end
 
   def test_prompts_the_user_for_a_key_if_none_is_provided
@@ -584,28 +578,30 @@ mybar=100
   end
 
   def test_create_cron_script
-    # should create the cron script file if RVM OR BUNDLER are used
+    Scout::Environment.stubs(:rvm?).returns(true)
+    Scout::Environment.stubs(:bundler?).returns(true)
+    install = Scout::Command::Install.new({:history => PATH_TO_DATA_FILE},{})
+    install.send(:create_cron_script, @client.key)
+    cron_script = File.join(AGENT_DIR, 'scout_cron.sh')
+    assert File.exist?(cron_script)
+    assert File.executable?(cron_script)
+    File.delete(cron_script)
   end
 
   def test_generate_rvm_bundler_cron_command
+    Scout::Environment.stubs(:rvm?).returns(true)
+    Scout::Environment.stubs(:bundler?).returns(true)
+    install = Scout::Command::Install.new({},{})
+    cron_command = install.send(:cron_command, @client.key)
+    assert cron_command.include?('scout_cron.sh')
   end
 
   def test_generate_non_rvm_bundler_cron_command
-    puts Scout::Environment.rvm?
     Scout::Environment.stubs(:rvm?).returns(false)
     Scout::Environment.stubs(:bundler?).returns(false)
-    puts Scout::Environment.rvm?
-    PTY.spawn("bin/scout install #{@client.key} -s http://localhost:4567 -d #{PATH_TO_DATA_FILE}") do | stdin, stdout, pid |
-      begin
-        puts "* * * * * #{File.expand_path(SCOUT_PATH)}"
-        #res = stdin.expect(/\* \* \* \* \* #{File.expand_path(SCOUT_PATH)}/, 3)
-        res = stdin.expect(/visit/i, 3)
-        puts res
-        #assert_not_nil stdin.expect(/\* \* \* \* \* /usr/local/scout #{@client.key}/, 3), "Incorrect or missing cron command generated"
-      rescue Errno::EIO
-        nil
-      end
-    end
+    install = Scout::Command::Install.new({},{})
+    cron_command = install.send(:cron_command, @client.key)
+    assert_equal cron_command, "#{`which scout`.strip} #{@client.key}"
   end
 
 
@@ -633,9 +629,8 @@ mybar=100
   #   scout in the process, making debugging easier. 
   # * The option handling is different in this method vs. #exec_scout: it takes an Array of options as Scout::Command.dispatch
   #   uses ARGV.
-  def scout(key, *opts)
-    args = []
-    args << key
+  def scout(args, *opts)
+    args = Array(args)
     args += ['-s','http://localhost:4567']
     args += ['-d', PATH_TO_DATA_FILE]
     args += opts if opts.any?

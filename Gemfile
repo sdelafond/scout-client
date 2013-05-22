@@ -7,4 +7,5 @@ group :test do
   gem "newrelic_rpm"
   gem "activerecord", "2.2.2"
   gem "mysql"
+  gem "mocha", :require => false
 end
