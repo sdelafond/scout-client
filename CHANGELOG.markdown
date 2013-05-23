@@ -1,3 +1,7 @@
+# 5.6.9
+
+* Install command generates a script for cron to run when using RVM or Bundler
+
 # 5.6.8
 
 * Updated JSON to 1.8.0
