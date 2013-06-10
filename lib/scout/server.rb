@@ -96,55 +96,7 @@ module Scout
         get(url, "Could not retrieve plan from server.", headers) do |res|
           begin
             body = res.body
-            if res["Content-Encoding"] == "gzip" and body and not body.empty?
-              body = Zlib::GzipReader.new(StringIO.new(body)).read
-            end
-            body_as_hash = JSON.parse(body)
-            
-            temp_plugins=Array(body_as_hash["plugins"])
-            temp_plugins.each_with_index do |plugin,i|
-              signature=plugin['signature']
-              id_and_name = "#{plugin['id']}-#{plugin['name']}".sub(/\A-/, "")
-              if signature
-                code=plugin['code'].gsub(/ +$/,'') # we strip trailing whitespace before calculating signatures. Same here.
-                decoded_signature=Base64.decode64(signature)
-                if !scout_public_key.verify(OpenSSL::Digest::SHA1.new, decoded_signature, code)
-                  if account_public_key
-                    if !account_public_key.verify(OpenSSL::Digest::SHA1.new, decoded_signature, code)
-                      info "#{id_and_name} signature verification failed for both the Scout and account public keys"
-                      plugin['sig_error'] = "The code signature failed verification against both the Scout and account public key. Please ensure the public key installed at #{@account_public_key_path} was generated with the same private key used to sign the plugin."
-                      @plugins_with_signature_errors << temp_plugins.delete_at(i)
-                    end
-                  else
-                    info "#{id_and_name} signature doesn't match!"
-                    plugin['sig_error'] = "The code signature failed verification. Please place your account-specific public key at #{@account_public_key_path}."
-                    @plugins_with_signature_errors << temp_plugins.delete_at(i)
-                  end
-                end
-              # filename is set for local plugins. these don't have signatures.
-              elsif plugin['filename']
-                plugin['code']=nil # should not have any code.
-              else
-                info "#{id_and_name} has no signature!"
-                plugin['sig_error'] = "The code has no signature and cannot be verified."
-                @plugins_with_signature_errors << temp_plugins.delete_at(i)
-              end
-            end
-
-            @plugin_plan = temp_plugins
-            @directives = body_as_hash["directives"].is_a?(Hash) ? body_as_hash["directives"] : Hash.new
-            @history["plan_last_modified"] = res["last-modified"]
-            @history["old_plugins"]        = @plugin_plan
-            @history["directives"]         = @directives
-
-            info "Plan loaded.  (#{@plugin_plan.size} plugins:  " +
-                 "#{@plugin_plan.map { |p| p['name'] }.join(', ')})" +
-                 ". Directives: #{@directives.to_a.map{|a|  "#{a.first}:#{a.last}"}.join(", ")}"
-
-            @new_plan = true # used in determination if we should checkin this time or not
-
-            # Add local plugins to the plan.
-            @plugin_plan += get_local_plugins
+            process_new_plan(body)
           rescue Exception =>e
             fatal "Plan from server was malformed: #{e.message} - #{e.backtrace}"
             exit
@@ -261,6 +213,7 @@ module Scout
 
     # uses values from history and current time to determine if we should checkin at this time
     def time_to_checkin?
+      return false if time_to_ping?
       @history['last_checkin'] == nil ||
               @directives['interval'] == nil ||
               (Time.now.to_i - Time.at(@history['last_checkin']).to_i).abs+15+sleep_interval > @directives['interval'].to_i*60
@@ -613,6 +566,58 @@ module Scout
         debug "No Plugin Configs at #{path}"
       end
       return temp_configs
+    end
+
+    def process_new_plan(body)
+      if res["Content-Encoding"] == "gzip" and body and not body.empty?
+        body = Zlib::GzipReader.new(StringIO.new(body)).read
+      end
+      body_as_hash = JSON.parse(body)
+      
+      temp_plugins=Array(body_as_hash["plugins"])
+      temp_plugins.each_with_index do |plugin,i|
+        signature=plugin['signature']
+        id_and_name = "#{plugin['id']}-#{plugin['name']}".sub(/\A-/, "")
+        if signature
+          code=plugin['code'].gsub(/ +$/,'') # we strip trailing whitespace before calculating signatures. Same here.
+          decoded_signature=Base64.decode64(signature)
+          if !scout_public_key.verify(OpenSSL::Digest::SHA1.new, decoded_signature, code)
+            if account_public_key
+              if !account_public_key.verify(OpenSSL::Digest::SHA1.new, decoded_signature, code)
+                info "#{id_and_name} signature verification failed for both the Scout and account public keys"
+                plugin['sig_error'] = "The code signature failed verification against both the Scout and account public key. Please ensure the public key installed at #{@account_public_key_path} was generated with the same private key used to sign the plugin."
+                @plugins_with_signature_errors << temp_plugins.delete_at(i)
+              end
+            else
+              info "#{id_and_name} signature doesn't match!"
+              plugin['sig_error'] = "The code signature failed verification. Please place your account-specific public key at #{@account_public_key_path}."
+              @plugins_with_signature_errors << temp_plugins.delete_at(i)
+            end
+          end
+        # filename is set for local plugins. these don't have signatures.
+        elsif plugin['filename']
+          plugin['code']=nil # should not have any code.
+        else
+          info "#{id_and_name} has no signature!"
+          plugin['sig_error'] = "The code has no signature and cannot be verified."
+          @plugins_with_signature_errors << temp_plugins.delete_at(i)
+        end
+      end
+
+      @plugin_plan = temp_plugins
+      @directives = body_as_hash["directives"].is_a?(Hash) ? body_as_hash["directives"] : Hash.new
+      @history["plan_last_modified"] = res["last-modified"]
+      @history["old_plugins"]        = @plugin_plan
+      @history["directives"]         = @directives
+
+      info "Plan loaded.  (#{@plugin_plan.size} plugins:  " +
+           "#{@plugin_plan.map { |p| p['name'] }.join(', ')})" +
+           ". Directives: #{@directives.to_a.map{|a|  "#{a.first}:#{a.last}"}.join(", ")}"
+
+      @new_plan = true # used in determination if we should checkin this time or not
+
+      # Add local plugins to the plan.
+      @plugin_plan += get_local_plugins
     end
   end
 end
