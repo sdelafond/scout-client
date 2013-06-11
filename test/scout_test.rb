@@ -30,6 +30,12 @@ AGENT_LOG = File.join AGENT_DIR, 'latest_run.log'
 PLUGINS_PROPERTIES = File.join AGENT_DIR, 'plugins.properties'
 PATH_TO_TEST_PLUGIN = File.expand_path( File.dirname(__FILE__) ) + '/plugins/temp_plugin.rb'
 
+begin
+  require 'pry'
+rescue LoadError
+  # not using pry
+end
+
 
 # This is a super simple shim to provide the two methods we use in delayed_job's API:
 # some_ar_instance.delay.some_method, and some_ar_class.delay.some_class_method
@@ -367,7 +373,7 @@ mybar=100
     File.open(override_path,"w"){|f|f.write(code)}
 
     scout(@client.key)
-    report=YAML.load(@plugin.reload.last_report_raw.to_yaml)
+    report=@plugin.reload.last_report_values
     assert report["foo"].is_a?(Array)
     assert_equal 99, report["foo"].first
     File.delete(override_path)

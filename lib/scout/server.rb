@@ -95,8 +95,7 @@ module Scout
 
         get(url, "Could not retrieve plan from server.", headers) do |res|
           begin
-            body = res.body
-            process_new_plan(body)
+            process_new_plan(res)
           rescue Exception =>e
             fatal "Plan from server was malformed: #{e.message} - #{e.backtrace}"
             exit
@@ -213,7 +212,6 @@ module Scout
 
     # uses values from history and current time to determine if we should checkin at this time
     def time_to_checkin?
-      return false if time_to_ping?
       @history['last_checkin'] == nil ||
               @directives['interval'] == nil ||
               (Time.now.to_i - Time.at(@history['last_checkin']).to_i).abs+15+sleep_interval > @directives['interval'].to_i*60
@@ -225,6 +223,7 @@ module Scout
 
     # uses values from history and current time to determine if we should ping the server at this time
     def time_to_ping?
+      return false if time_to_checkin?
       return true if
       @history['last_ping'] == nil ||
               @directives['ping_interval'] == nil ||
@@ -568,7 +567,8 @@ module Scout
       return temp_configs
     end
 
-    def process_new_plan(body)
+    def process_new_plan(res)
+      body = res.body
       if res["Content-Encoding"] == "gzip" and body and not body.empty?
         body = Zlib::GzipReader.new(StringIO.new(body)).read
       end
