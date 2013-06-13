@@ -106,12 +106,10 @@ module Scout
     end
 
     def load_old_plan
-      info "Plan not modified."
-      binding.pry
       @plugin_plan = Array(@history["old_plugins"])
       @plugin_plan += get_local_plugins
-      @directives = @history["directives"] || Hash.new
       @plugin_plan.reject! { |p| p['code'].nil? }
+      @directives = @history["directives"] || Hash.new
     end
 
 
@@ -211,23 +209,20 @@ module Scout
     end
     
     def account_public_key_changed?
-      @history['account_public_key'] != account_public_key.to_s
+      @history['account_public_key'].to_s != account_public_key.to_s
     end
 
     # uses values from history and current time to determine if we should checkin at this time
     def time_to_checkin?
-      @history['last_checkin'] == nil ||
-              @directives['interval'] == nil ||
-              (Time.now.to_i - Time.at(@history['last_checkin']).to_i).abs+15+sleep_interval > @directives['interval'].to_i*60
+      ping_key.present? &&
+        !account_public_key_changed? &&
+        (@history['last_checkin'] == nil ||
+          @directives['interval'] == nil ||
+          (Time.now.to_i - Time.at(@history['last_checkin']).to_i).abs+15+sleep_interval > @directives['interval'].to_i*60)
     rescue
       debug "Failed to calculate time_to_checkin. @history['last_checkin']=#{@history['last_checkin']}. "+
               "@directives['interval']=#{@directives['interval']}. Time.now.to_i=#{Time.now.to_i}"
       return true
-    end
-
-    # does not ping if it's time to checkin
-    def time_to_ping?
-      !time_to_checkin?
     end
 
     # returns a human-readable representation of the next checkin, i.e., 5min 30sec
@@ -533,6 +528,7 @@ module Scout
             "Content-Type"     => "application/json",
             "Content-Encoding" => "gzip",
             "If-Modified-Since" => @history["plan_last_modified"].to_s ) do |res|
+        @streamer_command = res["x-streamer-command"] # usually will be nil, but can be [start,abcd,1234,5678|stop]
         if res.is_a? Net::HTTPOK
           begin
             process_new_plan(res)

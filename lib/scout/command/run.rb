@@ -18,15 +18,15 @@ module Scout
           sleep @scout.sleep_interval
         end
 
-        if @scout.time_to_ping?
-          begin
-            @scout.fetch_plan
-          rescue SystemExit => e
-            puts "Failure. Run with '-v -ldebug' for more information" if $stdin.tty?
-            raise e
-          end
+        @scout.load_old_plan
+
+        # Check in if appropriate
+        if @scout.new_plan || @scout.time_to_checkin?  || @force
+          checkin
         else
-          @scout.load_old_plan
+          log.info "Not time to checkin yet. Next checkin in #{@scout.next_checkin}. Override by passing --force to the scout command" if log
+          ping
+          checkin if @scout.time_to_checkin?
         end
 
         # Spawn or stop streamer as needed
@@ -40,44 +40,52 @@ module Scout
           end
         end
 
-        # Check in if appropriate
-        if @scout.new_plan || @scout.time_to_checkin?  || @force
-          if @scout.new_plan
-            log.info("Now checking in with new plugin plan") if log
-          elsif @scout.time_to_checkin?
-            log.info("It is time to checkin") if log
-          elsif @force
-            log.info("overriding checkin schedule with --force and checking in now.") if log
-          end
+      end
 
-          begin
-            create_pid_file_or_exit
-            @scout.run_plugins_by_plan
-            @scout.save_history
-            puts "Successfully reported to #{server}" if $stdin.tty?
-          rescue SystemExit => e
-            puts "Failure. Run with '-v -ldebug' for more information" if $stdin.tty?
-            raise e
-          end
+      def checkin
+        if @scout.new_plan
+          log.info("Now checking in with new plugin plan") if log
+        elsif @scout.time_to_checkin?
+          log.info("It is time to checkin") if log
+        elsif @force
+          log.info("overriding checkin schedule with --force and checking in now.") if log
+        end
 
-          begin
-            # Since this is a new checkin, overwrite the existing log
-            File.open(log_path, "w") do|log_file|
-              log_file.puts log.messages # log.messages is an array of every message logged during this run
-            end
-          rescue
-            log.info "Could not write to #{log_path}."
+        begin
+          create_pid_file_or_exit
+          @scout.run_plugins_by_plan
+          @scout.save_history
+          puts "Successfully reported to #{server}" if $stdin.tty?
+        rescue SystemExit => e
+          puts "Failure. Run with '-v -ldebug' for more information" if $stdin.tty?
+          raise e
+        end
+
+        begin
+          # Since this is a new checkin, overwrite the existing log
+          File.open(log_path, "w") do|log_file|
+            log_file.puts log.messages # log.messages is an array of every message logged during this run
           end
-        else
-          log.info "Not time to checkin yet. Next checkin in #{@scout.next_checkin}. Override by passing --force to the scout command" if log
-          begin
-            # Since this a ping, append to the existing log
-            File.open(log_path, "a") do|log_file|
-              log_file.puts log.messages
-            end
-          rescue
-            log.info "Could not write to #{log_path}."
+        rescue
+          log.info "Could not write to #{log_path}."
+        end
+      end
+
+      def ping
+        # ping
+        begin
+          @scout.fetch_plan
+        rescue SystemExit => e
+          puts "Failure. Run with '-v -ldebug' for more information" if $stdin.tty?
+          raise e
+        end
+        begin
+          # Since this a ping, append to the existing log
+          File.open(log_path, "a") do|log_file|
+            log_file.puts log.messages
           end
+        rescue
+          log.info "Could not write to #{log_path}."
         end
       end
     end

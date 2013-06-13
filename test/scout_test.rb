@@ -477,7 +477,7 @@ mybar=100
     assert !File.exist?(streamer_pid_file)
 
     assert @client.update_attribute(:streamer_command, "start,A0000000000123,a,b,c,1,3")
-    exec_scout(@client.key)
+    exec_scout(@client.key, "-v -ldebug -f", true)
     assert File.exist?(streamer_pid_file)
     process_id = File.read(streamer_pid_file).to_i
     assert process_running?(process_id)
@@ -573,7 +573,6 @@ mybar=100
     client.plugins.each do |plugin|
       assert @db_role.plugin_templates.include?(plugin.plugin_template), "#{plugin} should be included in the db role"
     end
-
   end
 
   def test_hostname_override
@@ -608,6 +607,10 @@ mybar=100
     install = Scout::Command::Install.new({},{})
     cron_command = install.send(:cron_command, @client.key)
     assert_equal cron_command, "#{`which scout`.strip} #{@client.key}"
+  end
+
+  def test_process_plan_if_checkin_returns_a_plan
+    scout(@client.key)
   end
 
 
