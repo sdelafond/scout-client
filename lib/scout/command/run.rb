@@ -18,11 +18,15 @@ module Scout
           sleep @scout.sleep_interval
         end
 
-        begin
-          @scout.fetch_plan
-        rescue SystemExit => e
-          puts "Failure. Run with '-v -ldebug' for more information" if $stdin.tty?
-          raise e
+        if @scout.time_to_ping?
+          begin
+            @scout.fetch_plan
+          rescue SystemExit => e
+            puts "Failure. Run with '-v -ldebug' for more information" if $stdin.tty?
+            raise e
+          end
+        else
+          @scout.load_old_plan
         end
 
         # Spawn or stop streamer as needed

@@ -47,8 +47,8 @@ end
 
 class ScoutTest < Test::Unit::TestCase
   def setup
-    load_fixtures :clients, :accounts, :plugins, :subscriptions, :plugin_metas, :roles, :plugin_templates, :notification_groups
-    clear_tables :plugin_activities, :ar_descriptors, :summaries, :clients_roles
+    load_fixtures :clients, :accounts, :plugins, :subscriptions, :plugin_metas, :roles, :plugin_templates, :notification_groups, :plugin_urls
+    clear_tables :plugin_activities, :ar_descriptors, :summaries, :clients_roles, :plugin_last_reports
     clear_working_dir
     
 

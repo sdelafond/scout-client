@@ -1,4 +1,3 @@
-
 Dir.glob(File.join(File.dirname(__FILE__), *%w[.. .. vendor *])).each do |dir|
   $LOAD_PATH << File.join(dir,"lib")
 end
@@ -102,14 +101,19 @@ module Scout
           end
         end
       else
-        info "Plan not modified."
-        @plugin_plan = Array(@history["old_plugins"])
-        @plugin_plan += get_local_plugins
-        @directives = @history["directives"] || Hash.new
-
+        load_old_plan
       end
+    end
+
+    def load_old_plan
+      info "Plan not modified."
+      binding.pry
+      @plugin_plan = Array(@history["old_plugins"])
+      @plugin_plan += get_local_plugins
+      @directives = @history["directives"] || Hash.new
       @plugin_plan.reject! { |p| p['code'].nil? }
     end
+
 
     # returns an array of hashes representing local plugins found on the filesystem
     # The glob pattern requires that filenames begin with a letter,
@@ -221,17 +225,9 @@ module Scout
       return true
     end
 
-    # uses values from history and current time to determine if we should ping the server at this time
+    # does not ping if it's time to checkin
     def time_to_ping?
-      return false if time_to_checkin?
-      return true if
-      @history['last_ping'] == nil ||
-              @directives['ping_interval'] == nil ||
-              (Time.now.to_i - Time.at(@history['last_ping']).to_i).abs+15 > @directives['ping_interval'].to_i*60
-    rescue
-      debug "Failed to calculate time_to_ping. @history['last_ping']=#{@history['last_ping']}. "+
-              "@directives['ping_interval']=#{@directives['ping_interval']}. Time.now.to_i=#{Time.now.to_i}"
-      return true
+      !time_to_checkin?
     end
 
     # returns a human-readable representation of the next checkin, i.e., 5min 30sec
@@ -535,7 +531,18 @@ module Scout
             "Unable to check in with the server.",
             io.string,
             "Content-Type"     => "application/json",
-            "Content-Encoding" => "gzip" )
+            "Content-Encoding" => "gzip",
+            "If-Modified-Since" => @history["plan_last_modified"].to_s ) do |res|
+        if res.is_a? Net::HTTPOK
+          begin
+            process_new_plan(res)
+            checkin # this could run infinitely if 200 was already returned
+          rescue Exception =>e
+            fatal "Plan from server was malformed: #{e.message} - #{e.backtrace}"
+            exit
+          end
+        end
+      end
     rescue Exception
       error "Unable to check in with the server."
       debug $!.class.to_s
@@ -618,6 +625,7 @@ module Scout
 
       # Add local plugins to the plan.
       @plugin_plan += get_local_plugins
+      @plugin_plan.reject! { |p| p['code'].nil? }
     end
   end
 end
