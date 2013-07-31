@@ -1,3 +1,7 @@
+# 5.6.10
+
+* Fix for plugin.properties that contain '=' in the property value
+
 # 5.6.9
 
 * Install command generates a script for cron to run when using RVM or Bundler

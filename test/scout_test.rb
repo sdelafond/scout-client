@@ -4,9 +4,9 @@
 # Scout internal note: See documentation in scout_sinatra for running tests.
 #
 $VERBOSE=nil
-
-
 require 'rubygems'
+
+gem "activerecord", "=2.2.2" # quick fix for now for the agent tests to continue to run when the rails 2.3 gem is present
 require "active_record"
 require "json"          # the data format
 require "erb"           # only for loading rails DB config for now
@@ -331,26 +331,29 @@ EOS
             default: 0
         EOS
         def build_report
-          report :foo_value=>option(:foo)
+          report :foo_value=>option(:foo), :url_value=>option(:url)
         end
       end
     EOC
 
     run_scout_test(code, 'foo=13') do |res|
-      assert_match ':fields=>{:foo_value=>"13"', res
+      assert_match ':foo_value=>"13"', res
     end
 
     properties=<<-EOS
 # this is a properties file
 myfoo=99
 mybar=100
+myurl=http://foo.com?foo=bar
     EOS
 
     properties_path=File.join(AGENT_DIR,"plugins.properties")
     File.open(properties_path,"w") {|f| f.write properties}
 
-    run_scout_test(code, 'foo=lookup:myfoo') do |res|
-      assert_match ':fields=>{:foo_value=>"99"', res
+    run_scout_test(code, 'foo=lookup:myfoo url=lookup:myurl') do |res|
+      puts res
+      assert_match ':foo_value=>"99"', res
+      assert_match ':url_value=>"http://foo.com?foo=bar"', res
     end
 
     #cleanup
