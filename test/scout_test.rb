@@ -489,6 +489,29 @@ myurl=http://foo.com?foo=bar
     assert_nil @client.reload.streamer_command
   end
 
+  # Unfortunately, the Scout::Streamer::MAX_DURATION needs to be set in another process,
+  #   so even Scout::Streamer.const_set :MAX_DURATION, 0 doesn't work
+  # The only way to test this is to 1) open up streamer.rb and change MAX_DURATION=0, 2) uncomment this test, 3, run this test
+  #
+  #def test_streamer_removes_process_id_after_shutting_down
+  #  streamer_pid_file = File.join(AGENT_DIR, "scout_streamer.pid")
+  #  File.unlink(streamer_pid_file) if File.exist?(streamer_pid_file)
+  #  test_should_run_first_time
+  #  assert !File.exist?(streamer_pid_file)
+  #
+  #  assert @client.update_attribute(:streamer_command, "start,A0000000000123,a,b,c,1,3")
+  #  exec_scout(@client.key)
+  #  assert File.exist?(streamer_pid_file)
+  #  process_id = File.read(streamer_pid_file).to_i
+  #  assert process_running?(process_id)
+  #
+  #  sleep 2
+  #
+  #  assert !process_running?(process_id)
+  #  assert !File.exist?(streamer_pid_file)
+  #end
+
+
   def test_streamer_with_memory
     mock_pusher(3) do
       plugin = create_plugin(@client, "memory plugin", PLUGIN_FIXTURES[:memory][:code], PLUGIN_FIXTURES[:memory][:sig])
