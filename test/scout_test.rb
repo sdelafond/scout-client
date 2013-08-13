@@ -15,6 +15,11 @@ require 'newrelic_rpm'
 require "pty"
 require "expect"
 require 'test/unit'
+begin
+  require 'pry'
+rescue LoadError
+  # not using pry
+end
 # must be loaded after 
 $LOAD_PATH << File.expand_path( File.dirname(__FILE__) + '/../lib' )
 $LOAD_PATH << File.expand_path( File.dirname(__FILE__) + '/..' )
@@ -41,7 +46,7 @@ end
 
 class ScoutTest < Test::Unit::TestCase
   def setup
-    load_fixtures :clients, :accounts, :plugins, :subscriptions, :plugin_metas, :roles, :plugin_templates, :notification_groups
+    load_fixtures :environments, :clients, :accounts, :plugins, :subscriptions, :plugin_metas, :roles, :plugin_templates, :notification_groups
     clear_tables :plugin_activities, :ar_descriptors, :summaries, :clients_roles
     clear_working_dir
     
@@ -577,6 +582,13 @@ mybar=100
     assert_equal hostname_override, client.hostname
   end
 
+  def test_environment_argument
+    staging = environments(:staging)
+    scout(@roles_account.key, "--environment", staging.name)
+    client = @roles_account.clients.last
+    assert_equal staging, client.environment
+  end
+
   def test_create_cron_script
     Scout::Environment.stubs(:rvm?).returns(true)
     Scout::Environment.stubs(:bundler?).returns(true)
@@ -612,7 +624,7 @@ mybar=100
   # Runs the scout executable with the given +key+ and +opts+ string (ex: '-F').
   def exec_scout(key, opts = nil, print_output=false)
     opts = "" unless opts
-    cmd= "bin/scout #{key} -s http://localhost:4567 -d #{PATH_TO_DATA_FILE} #{opts} 2>&1"
+    cmd= "bin/scout #{key} -s http://localhost:4567 -v -ldebug -d #{PATH_TO_DATA_FILE} #{opts} 2>&1"
     puts "command: #{cmd}" if print_output
     output=`#{cmd}`
     puts output if print_output
