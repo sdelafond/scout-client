@@ -624,7 +624,7 @@ mybar=100
   # Runs the scout executable with the given +key+ and +opts+ string (ex: '-F').
   def exec_scout(key, opts = nil, print_output=false)
     opts = "" unless opts
-    cmd= "bin/scout #{key} -s http://localhost:4567 -v -ldebug -d #{PATH_TO_DATA_FILE} #{opts} 2>&1"
+    cmd= "bin/scout #{key} -s http://localhost:4567 -d #{PATH_TO_DATA_FILE} #{opts} 2>&1"
     puts "command: #{cmd}" if print_output
     output=`#{cmd}`
     puts output if print_output
