@@ -4,9 +4,9 @@
 # Scout internal note: See documentation in scout_sinatra for running tests.
 #
 $VERBOSE=nil
-
-
 require 'rubygems'
+
+gem "activerecord", "=2.2.2" # quick fix for now for the agent tests to continue to run when the rails 2.3 gem is present
 require "active_record"
 require "json"          # the data format
 require "erb"           # only for loading rails DB config for now
@@ -336,26 +336,29 @@ EOS
             default: 0
         EOS
         def build_report
-          report :foo_value=>option(:foo)
+          report :foo_value=>option(:foo), :url_value=>option(:url)
         end
       end
     EOC
 
     run_scout_test(code, 'foo=13') do |res|
-      assert_match ':fields=>{:foo_value=>"13"', res
+      assert_match ':foo_value=>"13"', res
     end
 
     properties=<<-EOS
 # this is a properties file
 myfoo=99
 mybar=100
+myurl=http://foo.com?foo=bar
     EOS
 
     properties_path=File.join(AGENT_DIR,"plugins.properties")
     File.open(properties_path,"w") {|f| f.write properties}
 
-    run_scout_test(code, 'foo=lookup:myfoo') do |res|
-      assert_match ':fields=>{:foo_value=>"99"', res
+    run_scout_test(code, 'foo=lookup:myfoo url=lookup:myurl') do |res|
+      puts res
+      assert_match ':foo_value=>"99"', res
+      assert_match ':url_value=>"http://foo.com?foo=bar"', res
     end
 
     #cleanup
@@ -490,6 +493,29 @@ mybar=100
     assert !process_running?(process_id)
     assert_nil @client.reload.streamer_command
   end
+
+  # Unfortunately, the Scout::Streamer::MAX_DURATION needs to be set in another process,
+  #   so even Scout::Streamer.const_set :MAX_DURATION, 0 doesn't work
+  # The only way to test this is to 1) open up streamer.rb and change MAX_DURATION=0, 2) uncomment this test, 3, run this test
+  #
+  #def test_streamer_removes_process_id_after_shutting_down
+  #  streamer_pid_file = File.join(AGENT_DIR, "scout_streamer.pid")
+  #  File.unlink(streamer_pid_file) if File.exist?(streamer_pid_file)
+  #  test_should_run_first_time
+  #  assert !File.exist?(streamer_pid_file)
+  #
+  #  assert @client.update_attribute(:streamer_command, "start,A0000000000123,a,b,c,1,3")
+  #  exec_scout(@client.key)
+  #  assert File.exist?(streamer_pid_file)
+  #  process_id = File.read(streamer_pid_file).to_i
+  #  assert process_running?(process_id)
+  #
+  #  sleep 2
+  #
+  #  assert !process_running?(process_id)
+  #  assert !File.exist?(streamer_pid_file)
+  #end
+
 
   def test_streamer_with_memory
     mock_pusher(3) do

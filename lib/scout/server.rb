@@ -603,7 +603,7 @@ module Scout
             line.strip!
             next if line[0] == '#'
             next unless line.include? "="
-            k,v =line.split('=')
+            k,v =line.split('=',2)
             temp_configs[k]=v
           end
           debug("#{temp_configs.size} plugin config(s) loaded.")

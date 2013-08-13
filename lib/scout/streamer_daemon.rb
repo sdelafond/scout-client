@@ -49,7 +49,7 @@ module Scout
       @scout = Scout::Streamer.new(history, streaming_key, p_app_id, p_key, p_secret, plugin_ids, hostname, log)
     end
 
-    # this method is called by DaemonSpawn's class start method.
+    # this method is called by DaemonSpawn's class stop method.
     def stop
       Scout::Streamer.continue_streaming = false
     end

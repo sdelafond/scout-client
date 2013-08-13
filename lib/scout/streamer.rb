@@ -93,6 +93,10 @@ module Scout
       end
 
       info("Streamer PID=#{$$} ending.")
+
+      # remove the pid file before exiting
+      streamer_pid_file=File.join(File.dirname(history_file),"scout_streamer.pid")
+      File.unlink(streamer_pid_file) if File.exist?(streamer_pid_file)
     end
 
     
