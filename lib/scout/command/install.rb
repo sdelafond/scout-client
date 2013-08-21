@@ -86,7 +86,7 @@ module Scout
           if cron_script_required?
             "#{config_dir}/scout_cron.sh"
           else
-            "#{`which scout`.strip} #{key}"
+            "#{File.expand_path($PROGRAM_NAME).strip} #{key}"
           end
         end
 

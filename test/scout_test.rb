@@ -648,7 +648,8 @@ myurl=http://foo.com?foo=bar
     Scout::Environment.stubs(:bundler?).returns(false)
     install = Scout::Command::Install.new({},{})
     cron_command = install.send(:cron_command, @client.key)
-    assert_equal cron_command, "#{`which scout`.strip} #{@client.key}"
+    # in the actual implementation, this will match "scout key"
+    assert_match /scout_test.rb key$/, cron_command
   end
 
 
