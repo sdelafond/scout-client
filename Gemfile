@@ -10,4 +10,5 @@ group :test do
   gem "mocha", :require => false
   gem "json"
   gem 'pry'
+  gem 'rake'
 end
