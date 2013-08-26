@@ -1,3 +1,7 @@
+# 5.7.1
+
+* Using $PROGRAM_NAME to determine scout path in install output
+
 # 5.7.0
 
 * Added support for environments
