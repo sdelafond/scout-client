@@ -10,72 +10,103 @@ describe Signature do
       "query" => "params",
       "go" => "here"
     })
-    @signature = @request.sign(@token)[:auth_signature]
   end
 
-  it "should generate base64 encoded signature from correct key" do
-    @request.send(:string_to_sign).should == "POST\n/some/path\nauth_key=key&auth_timestamp=1234&auth_version=1.0&go=here&query=params"
-    @signature.should == '3b237953a5ba6619875cbb2a2d43e8da9ef5824e8a2c689f6284ac85bc1ea0db'
-  end
+  describe "generating signatures" do
+    before :each do
+      @signature = "3b237953a5ba6619875cbb2a2d43e8da9ef5824e8a2c689f6284ac85bc1ea0db"
+    end
 
-  it "should make auth_hash available after request is signed" do
-    request = Signature::Request.new('POST', '/some/path', {
-      "query" => "params"
-    })
-    lambda {
-      request.auth_hash
-    }.should raise_error('Request not signed')
+    it "should generate signature correctly" do
+      @request.sign(@token)
+      string = @request.send(:string_to_sign)
+      string.should == "POST\n/some/path\nauth_key=key&auth_timestamp=1234&auth_version=1.0&go=here&query=params"
 
-    request.sign(@token)
-    request.auth_hash.should == {
-      :auth_signature => "da078fcedd72941b6c873caa40d0d6b2000ebfc700cee802b128dd20f72e74e9",
-      :auth_version => "1.0",
-      :auth_key => "key",
-      :auth_timestamp => '1234'
-    }
-  end
+      digest = OpenSSL::Digest::SHA256.new
+      signature = OpenSSL::HMAC.hexdigest(digest, @token.secret, string)
+      signature.should == @signature
+    end
 
-  it "should cope with symbol keys" do
-    @request.query_hash = {
-      :query => "params",
-      :go => "here"
-    }
-    @request.sign(@token)[:auth_signature].should == @signature
-  end
+    it "should make auth_hash available after request is signed" do
+      @request.query_hash = {
+        "query" => "params"
+      }
+      lambda {
+        @request.auth_hash
+      }.should raise_error('Request not signed')
 
-  it "should cope with upcase keys (keys are lowercased before signing)" do
-    @request.query_hash = {
-      "Query" => "params",
-      "GO" => "here"
-    }
-    @request.sign(@token)[:auth_signature].should == @signature
-  end
+      @request.sign(@token)
+      @request.auth_hash.should == {
+        :auth_signature => "da078fcedd72941b6c873caa40d0d6b2000ebfc700cee802b128dd20f72e74e9",
+        :auth_version => "1.0",
+        :auth_key => "key",
+        :auth_timestamp => '1234'
+      }
+    end
 
-  it "should use the path to generate signature" do
-    @request.path = '/some/other/path'
-    @request.sign(@token)[:auth_signature].should_not == @signature
-  end
+    it "should cope with symbol keys" do
+      @request.query_hash = {
+        :query => "params",
+        :go => "here"
+      }
+      @request.sign(@token)[:auth_signature].should == @signature
+    end
 
-  it "should use the query string keys to generate signature" do
-    @request.query_hash = {
-      "other" => "query"
-    }
-    @request.sign(@token)[:auth_signature].should_not == @signature
-  end
+    it "should cope with upcase keys (keys are lowercased before signing)" do
+      @request.query_hash = {
+        "Query" => "params",
+        "GO" => "here"
+      }
+      @request.sign(@token)[:auth_signature].should == @signature
+    end
 
-  it "should use the query string values to generate signature" do
-    @request.query_hash = {
-      "key" => "notfoo",
-      "other" => 'bar'
-    }
-    @request.sign(@token)[:signature].should_not == @signature
+    it "should generate correct string when query hash contains array" do
+      @request.query_hash = {
+        "things" => ["thing1", "thing2"]
+      }
+      @request.send(:string_to_sign).should == "POST\n/some/path\nthings[]=thing1&things[]=thing2"
+    end
+
+    # This may well change in auth version 2
+    it "should not escape keys or values in the query string" do
+      @request.query_hash = {
+        "key;" => "value@"
+      }
+      @request.send(:string_to_sign).should == "POST\n/some/path\nkey;=value@"
+    end
+
+    it "should cope with requests where the value is nil (antiregression)" do
+      @request.query_hash = {
+        "key" => nil
+      }
+      @request.send(:string_to_sign).should == "POST\n/some/path\nkey="
+    end
+
+    it "should use the path to generate signature" do
+      @request.path = '/some/other/path'
+      @request.sign(@token)[:auth_signature].should_not == @signature
+    end
+
+    it "should use the query string keys to generate signature" do
+      @request.query_hash = {
+        "other" => "query"
+      }
+      @request.sign(@token)[:auth_signature].should_not == @signature
+    end
+
+    it "should use the query string values to generate signature" do
+      @request.query_hash = {
+        "key" => "notfoo",
+        "other" => 'bar'
+      }
+      @request.sign(@token)[:signature].should_not == @signature
+    end
   end
 
   describe "verification" do
     before :each do
-      Time.stub!(:now).and_return(Time.at(1234))
       @request.sign(@token)
-      @params = @request.query_hash.merge(@request.auth_hash)
+      @params = @request.signed_params
     end
 
     it "should verify requests" do
@@ -148,6 +179,15 @@ describe Signature do
       }.should raise_error('Version not supported')
     end
 
+    it "should validate that the provided token has a non-empty secret" do
+      token = Signature::Token.new('key', '')
+      request = Signature::Request.new('POST', '/some/path', @params)
+
+      lambda {
+        request.authenticate_by_token!(token)
+      }.should raise_error('Provided token is missing secret')
+    end
+
     describe "when used with optional block" do
       it "should optionally take a block which yields the signature" do
         request = Signature::Request.new('POST', '/some/path', @params)
@@ -162,14 +202,83 @@ describe Signature do
         request = Signature::Request.new('POST', '/some/path', @params)
         lambda {
           request.authenticate { |key| nil }
-        }.should raise_error('Authentication key required')
+        }.should raise_error('Missing parameter: auth_key')
       end
 
       it "should raise error if block returns nil (i.e. key doesn't exist)" do
         request = Signature::Request.new('POST', '/some/path', @params)
         lambda {
           request.authenticate { |key| nil }
-        }.should raise_error('Invalid authentication key')
+        }.should raise_error('Unknown auth_key')
+      end
+
+      it "should raise unless block given" do
+        request = Signature::Request.new('POST', '/some/path', @params)
+        lambda {
+          request.authenticate
+        }.should raise_error(ArgumentError, "Block required")
+      end
+    end
+
+    describe "authenticate_async" do
+      include EM::SpecHelper
+      default_timeout 1
+
+      it "returns a deferrable which succeeds if authentication passes" do
+        request = Signature::Request.new('POST', '/some/path', @params)
+        em {
+          df = EM::DefaultDeferrable.new
+
+          request_df = request.authenticate_async do |key|
+            df
+          end
+
+          df.succeed(@token)
+
+          request_df.callback { |token|
+            token.should == @token
+            done
+          }
+        }
+      end
+
+      it "returns a deferrable which fails if block df fails" do
+        request = Signature::Request.new('POST', '/some/path', @params)
+        em {
+          df = EM::DefaultDeferrable.new
+
+          request_df = request.authenticate_async do |key|
+            df
+          end
+
+          df.fail()
+
+          request_df.errback { |e|
+            e.class.should == Signature::AuthenticationError
+            e.message.should == 'Unknown auth_key'
+            done
+          }
+        }
+      end
+
+      it "returns a deferrable which fails if request does not validate" do
+        request = Signature::Request.new('POST', '/some/path', @params)
+        em {
+          df = EM::DefaultDeferrable.new
+
+          request_df = request.authenticate_async do |key|
+            df
+          end
+
+          token = Signature::Token.new('key', 'wrong_secret')
+          df.succeed(token)
+
+          request_df.errback { |e|
+            e.class.should == Signature::AuthenticationError
+            e.message.should =~ /Invalid signature/
+            done
+          }
+        }
       end
     end
   end

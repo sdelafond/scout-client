@@ -804,13 +804,12 @@ myurl=http://foo.com?foo=bar
       alias orig_trigger! trigger!
       def self.streamer_data;@@streamer_data;end # for getting the data back out
       def trigger!(event_name, data, socket=nil)
-        @num_run_for_tests = @num_run_for_tests ? @num_run_for_tests+1 : 1
-        # puts "in mock pusher trigger! This is run #{@num_run_for_tests} of #{$num_runs_for_mock_pusher}"
+        $num_run_for_tests = $num_run_for_tests ? $num_run_for_tests+1 : 1
         @@streamer_data_temp ||= Array.new
         @@streamer_data_temp << data
-        if @num_run_for_tests >= $num_runs_for_mock_pusher
+        if $num_run_for_tests >= $num_runs_for_mock_pusher
           Scout::Streamer.continue_streaming=false
-          @num_run_for_tests=nil
+          $num_run_for_tests=nil
           @@streamer_data = @@streamer_data_temp.clone
           @@streamer_data_temp = nil
         end
