@@ -5,6 +5,7 @@ end
 
 require "multi_json"
 require "pusher"
+require "httpclient"
 
 module Scout
   class Server < Scout::ServerBase

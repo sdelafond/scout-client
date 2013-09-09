@@ -29,7 +29,7 @@ module Scout
         if @scout.streamer_command.is_a?(String)
           if @scout.streamer_command.start_with?("start")
             log.info "streamer command: start"
-            Scout::StreamerDaemon.start_daemon(history, @scout.streamer_command, @hostname)
+            Scout::StreamerDaemon.start_daemon(history, @scout.streamer_command, @hostname, @http_proxy)
           elsif @scout.streamer_command == "stop"
             log.info "streamer command: stop"
             Scout::StreamerDaemon.stop_daemon(history)

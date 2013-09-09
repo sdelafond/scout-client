@@ -1,3 +1,8 @@
+# 5.7.2
+
+* updated pusher gem and associated vendored gems
+* added support for realtime when using an http proxy
+
 # 5.7.1
 
 * Using $PROGRAM_NAME to determine scout path in install output

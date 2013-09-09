@@ -2,7 +2,7 @@ module Scout
   class StreamerDaemon < DaemonSpawn::Base
 
     # this is the public-facing method for starting the streaming daemon
-    def self.start_daemon(history_file, streamer_command, hostname)
+    def self.start_daemon(history_file, streamer_command, hostname, http_proxy)
       streamer_log_file=File.join(File.dirname(history_file),"scout_streamer.log")
       streamer_pid_file=File.join(File.dirname(history_file),"scout_streamer.pid")
 
@@ -21,7 +21,7 @@ module Scout
       plugin_ids = tokens.map(&:to_i)
 
       # we use STDOUT for the logger because daemon_spawn directs STDOUT to a log file
-      streamer_args = [history_file,streaming_key,p_app_id,p_key,p_secret,plugin_ids,hostname,Logger.new(STDOUT)]
+      streamer_args = [history_file,streaming_key,p_app_id,p_key,p_secret,plugin_ids,hostname,http_proxy,Logger.new(STDOUT)]
       if File.exists?(streamer_pid_file)
         Scout::StreamerDaemon.restart(daemon_spawn_options, streamer_args)
       else
@@ -45,8 +45,8 @@ module Scout
 
     # this method is called by DaemonSpawn's class start method.
     def start(streamer_args)
-      history,streaming_key,p_app_id,p_key,p_secret,plugin_ids,hostname,log = streamer_args
-      @scout = Scout::Streamer.new(history, streaming_key, p_app_id, p_key, p_secret, plugin_ids, hostname, log)
+      history,streaming_key,p_app_id,p_key,p_secret,plugin_ids,hostname,http_proxy,log = streamer_args
+      @scout = Scout::Streamer.new(history, streaming_key, p_app_id, p_key, p_secret, plugin_ids, hostname, http_proxy, log)
     end
 
     # this method is called by DaemonSpawn's class stop method.

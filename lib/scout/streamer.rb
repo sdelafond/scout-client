@@ -9,7 +9,7 @@ module Scout
 
     # * history_file is the *path* to the history file
     # * plugin_ids is an array of integers
-    def initialize(history_file, streaming_key, p_app_id, p_key, p_secret, plugin_ids, hostname, logger = nil)
+    def initialize(history_file, streaming_key, p_app_id, p_key, p_secret, plugin_ids, hostname, http_proxy, logger = nil)
       @@continue_streaming = true
       @history_file = history_file
       @history      = Hash.new
@@ -20,6 +20,7 @@ module Scout
       Pusher.app_id=p_app_id
       Pusher.key=p_key
       Pusher.secret=p_secret
+      Pusher.http_proxy = http_proxy if http_proxy !=""
 
       #[[:app_id,p_app_id],[:key,p_key],[:secret,p_secret]].each { |p| Pusher.send p.first, p.last}
 
@@ -32,7 +33,7 @@ module Scout
 
       # get the array of plugins, AKA the plugin plan
       @all_plugins = Array(@history["old_plugins"])
-      info("Starting streamer with key=#{streaming_key} and plugin_ids: #{plugin_ids.inspect}. #{@history_file} includes plugin ids #{@all_plugins.map{|p|p['id']}.inspect}")
+      info("Starting streamer with key=#{streaming_key} and plugin_ids: #{plugin_ids.inspect}. #{@history_file} includes plugin ids #{@all_plugins.map{|p|p['id']}.inspect}. http_proxy = #{http_proxy}")
 
       # selected_plugins is subset of the @all_plugins -- those selected in plugin_ids
       selected_plugins = compile_plugins(@all_plugins, plugin_ids)

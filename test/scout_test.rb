@@ -425,7 +425,7 @@ myurl=http://foo.com?foo=bar
       scout(@client.key) # to write the initial history file. Sinatra MUST be running
       $continue_streaming = true # so the streamer will run once
       # for debugging, make last arg Logger.new(STDOUT)
-      Scout::Streamer.new(PATH_TO_DATA_FILE,"bogus_streaming_key","a","b","c",[@client.plugins.first.id]+plugins.map(&:id),"blade",nil)
+      Scout::Streamer.new(PATH_TO_DATA_FILE,"bogus_streaming_key","a","b","c",[@client.plugins.first.id]+plugins.map(&:id),"blade","",nil)
     end
 
     streams = Pusher::Channel.streamer_data  # set by the mock_pusher call
@@ -455,7 +455,7 @@ myurl=http://foo.com?foo=bar
     mock_pusher do
       $continue_streaming = true # so the streamer will run once
       # for debugging, make last arg Logger.new(STDOUT)
-      Scout::Streamer.new(PATH_TO_DATA_FILE,"bogus_streaming_key","a","b","c",[@client.plugins.first.id],"blade",nil)
+      Scout::Streamer.new(PATH_TO_DATA_FILE,"bogus_streaming_key","a","b","c",[@client.plugins.first.id],"blade","",nil)
     end
     streams = Pusher::Channel.streamer_data  # set by the mock_pusher call
     assert streams.is_a?(Array)
@@ -523,7 +523,7 @@ myurl=http://foo.com?foo=bar
       exec_scout(@client.key)
       #puts YAML.load(File.read(PATH_TO_DATA_FILE))['memory'].to_yaml
       # for debugging, make last arg Logger.new(STDOUT)
-      Scout::Streamer.new(PATH_TO_DATA_FILE,"bogus_streaming_key","a","b","c",[plugin.id],"blade",nil)
+      Scout::Streamer.new(PATH_TO_DATA_FILE,"bogus_streaming_key","a","b","c",[plugin.id],"blade","",nil)
     end
 
     streams = Pusher::Channel.streamer_data  # set by the mock_pusher call
@@ -538,7 +538,7 @@ myurl=http://foo.com?foo=bar
       plugin = create_plugin(@client, "caching plugin", PLUGIN_FIXTURES[:caching][:code], PLUGIN_FIXTURES[:caching][:sig])
       exec_scout(@client.key)
       # for debugging, make last arg Logger.new(STDOUT)
-      Scout::Streamer.new(PATH_TO_DATA_FILE,"bogus_streaming_key","a","b","c",[plugin.id],"blade",nil)
+      Scout::Streamer.new(PATH_TO_DATA_FILE,"bogus_streaming_key","a","b","c",[plugin.id],"blade","",nil)
     end
 
     streams = Pusher::Channel.streamer_data  # set by the mock_pusher call
