@@ -9,7 +9,11 @@ module Scout
     end
 
     def self.rvm_path
-      `rvm env --path`
+      rvm_path = `rvm env --path`
+      if $?.exitstatus != 0
+        raise "Scout is unable to generate a Cron shell script for RVM versions <= 1.12.0. See http://blog.scoutapp.com/articles/2013/06/07/rvm-bundler-and-cron-in-production-round-2 for instructions on building this script manually."
+      end
+      rvm_path
     end
   end
 end
