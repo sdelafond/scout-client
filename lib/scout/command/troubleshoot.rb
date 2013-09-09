@@ -104,14 +104,8 @@ module Scout
     def request(url, response_handler, error, &connector)
       response           = nil
       Timeout.timeout(5 * 60, APITimeoutError) do
-        http               = Net::HTTP.new(url.host, url.port)
-        if url.is_a? URI::HTTPS
-          http.use_ssl     = true
-          http.ca_file     = File.join( File.dirname(__FILE__),
-                                        *%w[.. .. .. data cacert.pem] )
-          http.verify_mode = OpenSSL::SSL::VERIFY_PEER |
-                             OpenSSL::SSL::VERIFY_FAIL_IF_NO_PEER_CERT
-        end
+        http = build_http(url)
+
         response           = no_warnings { http.start(&connector) }
       end
       case response

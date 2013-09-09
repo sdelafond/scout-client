@@ -6,9 +6,6 @@ module Scout
   class Command
     class Sign < Command
       HELP_URL    = "https://scoutapp.com/info/creating_a_plugin#private_plugins"
-      CA_FILE     = File.join( File.dirname(__FILE__),
-                                    *%w[.. .. .. data cacert.pem] )
-      VERIFY_MODE = OpenSSL::SSL::VERIFY_PEER | OpenSSL::SSL::VERIFY_FAIL_IF_NO_PEER_CERT
       
       def run
         url = @args.first
@@ -34,19 +31,9 @@ module Scout
         sig=Base64.encode64(code_signature)
         
         puts "Posting Signature..."
-        uri = URI.parse(url)
 
-        # take care of http/https proxy, if specified in command line options
-        # Given a blank string, the proxy_uri URI instance's host/port/user/pass will be nil
-        # Net::HTTP::Proxy returns a regular Net::HTTP class if the first argument (host) is nil
-        proxy_uri = URI.parse(uri.is_a?(URI::HTTPS) ? @https_proxy : @http_proxy)
-        http=Net::HTTP::Proxy(proxy_uri.host,proxy_uri.port,proxy_uri.user,proxy_uri.port).new(uri.host, uri.port)
+        http = build_http(url)
 
-        if uri.is_a?(URI::HTTPS)
-          http.use_ssl = true
-          http.ca_file     = CA_FILE
-          http.verify_mode = VERIFY_MODE        
-        end
         request = Net::HTTP::Post.new(uri.request_uri)
         request.set_form_data({'signature' => sig})
         res = http.request(request)
@@ -65,13 +52,9 @@ module Scout
       
       def fetch_code(url)
         puts "Fetching code..."
-        uri = URI.parse(url)
-        http = Net::HTTP.new(uri.host, uri.port)
-        if uri.is_a?(URI::HTTPS)
-          http.use_ssl = true
-          http.ca_file     = CA_FILE
-          http.verify_mode = VERIFY_MODE
-        end
+
+        http = build_http(url)
+
         request = Net::HTTP::Get.new(uri.request_uri)
         res = http.request(request)
         if !res.is_a?(Net::HTTPOK)
