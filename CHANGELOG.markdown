@@ -2,6 +2,7 @@
 
 * updated pusher gem and associated vendored gems
 * added support for realtime when using an http proxy
+* added support for proxies during full signing process and troubleshoot
 
 # 5.7.1
 
