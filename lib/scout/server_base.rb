@@ -9,6 +9,8 @@ require "base64"
 
 module Scout
   class ServerBase
+    include Scout::HTTP
+
     # A new class for plugin Timeout errors.
     class PluginTimeoutError < RuntimeError; end
     # A new class for API Timeout errors.
@@ -51,23 +53,11 @@ module Scout
       end
     end
 
-    def request(url, response_handler, error, &connector)
+    def request(uri, response_handler, error, &connector)
       response = nil
       Timeout.timeout(5 * 60, APITimeoutError) do
-        # take care of http/https proxy, if specified in command line options
-        # Given a blank string, the proxy_uri URI instance's host/port/user/pass will be nil
-        # Net::HTTP::Proxy returns a regular Net::HTTP class if the first argument (host) is nil
-        info "using http_proxy=#{@http_proxy}, https_proxy=#{@https_proxy}" if @http_proxy != '' || @https_proxy != ''
-        proxy_uri = URI.parse(url.is_a?(URI::HTTPS) ? @https_proxy : @http_proxy)
-        http=Net::HTTP::Proxy(proxy_uri.host,proxy_uri.port,proxy_uri.user,proxy_uri.password).new(url.host, url.port)
+        http = build_http(uri)
 
-        if url.is_a? URI::HTTPS
-          http.use_ssl = true
-          http.ca_file = File.join(File.dirname(__FILE__),
-                                   *%w[.. .. data cacert.pem])
-          http.verify_mode = OpenSSL::SSL::VERIFY_PEER |
-              OpenSSL::SSL::VERIFY_FAIL_IF_NO_PEER_CERT
-        end
         response = no_warnings { http.start(&connector) }
       end
       case response

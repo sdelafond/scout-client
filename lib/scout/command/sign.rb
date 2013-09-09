@@ -32,7 +32,8 @@ module Scout
         
         puts "Posting Signature..."
 
-        http = build_http(url)
+        uri = URI.parse(url)
+        http = build_http(uri)
 
         request = Net::HTTP::Post.new(uri.request_uri)
         request.set_form_data({'signature' => sig})
@@ -53,7 +54,8 @@ module Scout
       def fetch_code(url)
         puts "Fetching code..."
 
-        http = build_http(url)
+        uri = URI.parse(url)
+        http = build_http(uri)
 
         request = Net::HTTP::Get.new(uri.request_uri)
         res = http.request(request)

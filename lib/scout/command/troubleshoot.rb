@@ -101,10 +101,10 @@ module Scout
       end
     end
 
-    def request(url, response_handler, error, &connector)
+    def request(uri, response_handler, error, &connector)
       response           = nil
       Timeout.timeout(5 * 60, APITimeoutError) do
-        http = build_http(url)
+        http = build_http(uri)
 
         response           = no_warnings { http.start(&connector) }
       end
