@@ -110,9 +110,9 @@ module Scout
               if signature
                 code=plugin['code'].gsub(/ +$/,'') # we strip trailing whitespace before calculating signatures. Same here.
                 decoded_signature=Base64.decode64(signature)
-                if !scout_public_key.verify(OpenSSL::Digest::SHA1.new, decoded_signature, code)
+                if !verify_public_key(scout_public_key, decoded_signature, code)
                   if account_public_key
-                    if !account_public_key.verify(OpenSSL::Digest::SHA1.new, decoded_signature, code)
+                    if !verify_public_key(account_public_key, decoded_signature, code)
                       info "#{id_and_name} signature verification failed for both the Scout and account public keys"
                       plugin['sig_error'] = "The code signature failed verification against both the Scout and account public key. Please ensure the public key installed at #{@account_public_key_path} was generated with the same private key used to sign the plugin."
                       @plugins_with_signature_errors << temp_plugins.delete_at(i)
@@ -615,6 +615,12 @@ module Scout
         debug "No Plugin Configs at #{path}"
       end
       return temp_configs
+    end
+
+    def verify_public_key(key, decoded_signature, code)
+      key.verify(OpenSSL::Digest::SHA1.new, decoded_signature, code)
+    rescue
+      false
     end
   end
 end
