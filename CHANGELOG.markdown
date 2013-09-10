@@ -1,3 +1,8 @@
+# 5.7.3
+
+* Fix for an issue with JRuby validating keys
+* More helpful output when installing on a version of RVM < 1.12.0
+
 # 5.7.2
 
 * updated pusher gem and associated vendored gems
