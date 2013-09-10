@@ -1,5 +1,5 @@
 module Scout
-  class Environment
+  module Environment
     def self.bundler?
       ENV['BUNDLE_BIN_PATH'] && ENV['BUNDLE_GEMFILE']
     end
@@ -10,10 +10,15 @@ module Scout
 
     def self.rvm_path
       rvm_path = `rvm env --path`
-      if $?.exitstatus != 0
-        raise "Scout is unable to generate a Cron shell script for RVM versions <= 1.12.0. See http://blog.scoutapp.com/articles/2013/06/07/rvm-bundler-and-cron-in-production-round-2 for instructions on building this script manually."
-      end
-      rvm_path
+      $?.exitstatus == 0 ? rvm_path : false
+    end
+
+    def self.rvm_path_instructions
+      self.rvm_path || "[PATH TO RVM ENVIRONMENT FILE]"
+    end
+
+    def self.old_rvm_version?
+      self.rvm? && !self.rvm_path
     end
   end
 end
