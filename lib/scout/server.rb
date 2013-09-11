@@ -619,7 +619,7 @@ module Scout
 
     def verify_public_key(key, decoded_signature, code)
       key.verify(OpenSSL::Digest::SHA1.new, decoded_signature, code)
-    rescue OpenSSL::PKey::RSAError
+    rescue
       false
     end
   end
