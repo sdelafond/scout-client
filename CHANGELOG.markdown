@@ -1,3 +1,7 @@
+# 5.7.4
+
+* fixed a JSON error when running under Ruby 1.8.x
+
 # 5.7.3
 
 * Fix for an issue with JRuby validating keys
