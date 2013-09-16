@@ -1,3 +1,7 @@
+# 5.7.5
+
+* send unix timestamp when streaming data
+
 # 5.7.4
 
 * fixed a JSON error when running under Ruby 1.8.x
