@@ -3,6 +3,8 @@ source "http://rubygems.org"
 # Specify your gem's dependencies in scout.gemspec
 gemspec
 
+gem "server_metrics"
+
 group :test do
   gem "newrelic_rpm"
   gem "activerecord", "2.2.2"

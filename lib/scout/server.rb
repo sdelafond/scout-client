@@ -312,11 +312,37 @@ module Scout
         end
       end
       take_snapshot if @directives['take_snapshots']
+      get_server_metrics
       process_signature_errors
       store_account_public_key
       checkin
     end
-    
+
+    # called from the main "run_plugin_by_plan" method.
+    def get_server_metrics
+      @history[:server_metrics] ||= {}
+
+      res={}
+      collectors = {:disk      => ServerMetrics::Disk,
+                    :cpu       => ServerMetrics::Cpu,
+                    :memory    => ServerMetrics::Memory,
+                    :network   => ServerMetrics::Network,
+                    :processes => ServerMetrics::Processes}
+
+      collectors.each_pair do |key,klass|
+        begin
+          collector_previous_run = @history[:server_metrics][key]
+          collector = collector_previous_run.is_a?(Hash) ? klass.from_hash(collector_previous_run) : klass.new() # continue with last run, or just create new
+          res[key] = collector.run
+          @history[:server_metrics][key] = collector.to_hash # store its state for next time
+        rescue Exception => e
+          raise if e.is_a?(SystemExit)
+          error "Problem running server/#{key} metrics: #{e.message}: \n#{e.backtrace.join("\n")}"
+        end
+      end
+      @checkin[:server_metrics] = res
+    end
+
     # Reports errors if there are any plugins with invalid signatures and sets a flag
     # to force a fresh plan on the next run.
     def process_signature_errors
@@ -502,7 +528,8 @@ module Scout
                    :snapshot         => '',
                    :config_path      => File.expand_path(File.dirname(@history_file)),
                    :server_name      => @server_name,
-                   :options          => Array.new}
+                   :options          => Array.new,
+                   :server_metrics   => Hash.new }
     end
 
     def show_checkin(printer = :p)

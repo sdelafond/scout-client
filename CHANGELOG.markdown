@@ -1,3 +1,7 @@
+# 5.8.0.pre
+
+Support for server metrics
+
 # 5.7.5
 
 * send unix timestamp when streaming data

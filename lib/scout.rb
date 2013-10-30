@@ -1,4 +1,8 @@
 #!/usr/bin/env ruby -wKU
+
+require "rubygems" # only required during development, so server_metrics will load
+require "server_metrics"
+
 require "scout/version"
 
 require "scout/http"
@@ -13,3 +17,4 @@ require "scout/daemon_spawn"
 require "scout/streamer_daemon"
 require "scout/data_file"
 require "scout/environment"
+
