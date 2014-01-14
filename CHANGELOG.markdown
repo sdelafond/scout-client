@@ -1,6 +1,10 @@
-# 5.8.0.pre
+# 5.8.1
 
-Support for server metrics
+* Updated to use server_metrics 1.0.1
+
+# 5.8.0
+
+* Support for server metrics
 
 # 5.7.5
 
