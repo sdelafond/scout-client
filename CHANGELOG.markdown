@@ -1,3 +1,7 @@
+# 5.8.3
+
+* Ruby gems issue - needed to yank 5.8.2 and republish.
+
 # 5.8.2
 
 * Updated to use server_metrics 1.0.2
