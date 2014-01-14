@@ -1,3 +1,7 @@
+# 5.8.2
+
+* Updated to use server_metrics 1.0.2
+
 # 5.8.1
 
 * Updated to use server_metrics 1.0.1
