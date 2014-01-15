@@ -1,14 +1,18 @@
+# 5.8.4
+
+* Upgrade to use server metrics 1.0.3 (jiffies)
+
 # 5.8.3
 
 * Ruby gems issue - needed to yank 5.8.2 and republish.
 
 # 5.8.2
 
-* Updated to use server_metrics 1.0.2
+* Updated to use server_metrics 1.0.2 (kthread)
 
 # 5.8.1
 
-* Updated to use server_metrics 1.0.1
+* Updated to use server_metrics 1.0.1 (khtreadd)
 
 # 5.8.0
 
