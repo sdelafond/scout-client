@@ -1,6 +1,6 @@
 # 5.8.5
 
-* Upgrade to use server metrics 1.1.0 (no more sys-proctable)
+* Upgrade to use server metrics 1.1.1 (no more sys-proctable)
 
 # 5.8.4
 

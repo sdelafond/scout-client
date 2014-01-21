@@ -24,5 +24,5 @@ END_DESC
   # specify any dependencies here; for example:
   # s.add_development_dependency "rspec"
   s.add_runtime_dependency "elif"
-  s.add_runtime_dependency "server_metrics",">= 1.1.0.pre"
+  s.add_runtime_dependency "server_metrics",">= 1.1.1"
 end
