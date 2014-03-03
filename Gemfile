@@ -7,8 +7,8 @@ gem "server_metrics"
 
 group :test do
   gem "newrelic_rpm"
-  gem "activerecord", "2.2.2"
-  gem "mysql"
+  gem "activerecord", "3.1.12"
+  gem "mysql2"
   gem "mocha", :require => false
   gem "json"
   gem 'pry'

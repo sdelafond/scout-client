@@ -6,7 +6,7 @@
 $VERBOSE=nil
 require 'rubygems'
 
-gem "activerecord", "=2.2.2" # quick fix for now for the agent tests to continue to run when the rails 2.3 gem is present
+gem "activerecord", "=3.1.12" # quick fix for now for the agent tests to continue to run when the rails 2.3 gem is present
 require "active_record"
 require "json"          # the data format
 require "erb"           # only for loading rails DB config for now
@@ -24,7 +24,7 @@ end
 $LOAD_PATH << File.expand_path( File.dirname(__FILE__) + '/../lib' )
 $LOAD_PATH << File.expand_path( File.dirname(__FILE__) + '/..' )
 require 'lib/scout'
-require 'mocha'
+require 'mocha/setup'
 
 
 SCOUT_PATH = '../scout'
@@ -731,6 +731,7 @@ myurl=http://foo.com?foo=bar
     # ActiveRecord configuration
     begin
       $LOAD_PATH << File.join(SCOUT_PATH,'app/models')
+      $LOAD_PATH << File.join(SCOUT_PATH,'app/models/system')
       # get an ActiveRecord connection
       db_config_path=File.join(SCOUT_PATH,'config/database.yml')
       db_config=YAML.load(ERB.new(File.read(db_config_path)).result)
