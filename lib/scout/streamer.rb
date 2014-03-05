@@ -9,7 +9,7 @@ module Scout
 
     # * history_file is the *path* to the history file
     # * plugin_ids is an array of integers
-    def initialize(history_file, streaming_key, p_app_id, p_key, p_secret, plugin_ids, hostname, http_proxy, logger = nil)
+    def initialize(history_file, streaming_key, p_app_id, p_key, p_secret, plugin_ids, system_metric_collectors, hostname, http_proxy, logger = nil)
       @@continue_streaming = true
       @history_file = history_file
       @history      = Hash.new
@@ -71,11 +71,32 @@ module Scout
                      :class=>plugin_hash['code_class']}
         end
 
+        system_metric_data = {}
+        all_collectors = {:disk      => ServerMetrics::Disk,
+                      :cpu       => ServerMetrics::Cpu,
+                      :memory    => ServerMetrics::Memory,
+                      :network   => ServerMetrics::Network,
+                      :processes => ServerMetrics::Processes}
+
+        realtime_collectors = all_collectors.select { |key, klass| system_metric_collectors.include?(key) }
+        realtime_collectors.each_pair do |key, klass|
+          begin
+            collector_previous_run = @history[:server_metrics][key]
+            collector = collector_previous_run.is_a?(Hash) ? klass.from_hash(collector_previous_run) : klass.new() # continue with last run, or just create new
+            system_metric_data[key] = collector.run
+            @history[:server_metrics][key] = collector.to_hash # store its state for next time
+          rescue Exception => e
+            raise if e.is_a?(SystemExit)
+            error "Problem running server/#{key} metrics: #{e.message}: \n#{e.backtrace.join("\n")}"
+          end
+        end
+
         bundle={:hostname=>hostname,
                  :server_time=>Time.now.strftime("%I:%M:%S %p"),
                  :server_unixtime => Time.now.to_i,
                  :num_processes=>`ps -e | wc -l`.chomp.to_i,
-                 :plugins=>plugins }
+                 :plugins=>plugins, 
+                 :system_metrics => system_metric_data}
 
         # stream the data via pusherapp
         begin
