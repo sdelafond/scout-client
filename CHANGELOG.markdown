@@ -1,10 +1,14 @@
+# 5.8.6
+
+* Upgrade to use server_metrics 1.2.0 (performance improvements)
+
 # 5.8.5
 
-* Upgrade to use server metrics 1.1.1 (no more sys-proctable)
+* Upgrade to use server_metrics 1.1.1 (no more sys-proctable)
 
 # 5.8.4
 
-* Upgrade to use server metrics 1.0.3 (jiffies)
+* Upgrade to use server_metrics 1.0.3 (jiffies)
 
 # 5.8.3
 
@@ -20,7 +24,7 @@
 
 # 5.8.0
 
-* Support for server metrics
+* Support for server_metrics
 
 # 5.7.5
 
