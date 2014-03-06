@@ -1,3 +1,7 @@
+# 5.8.7
+
+* Added support for realtime system metrics (processes, cpu, memory, disks, network devices)
+
 # 5.8.6
 
 * Upgrade to use server_metrics 1.2.0 (performance improvements)
