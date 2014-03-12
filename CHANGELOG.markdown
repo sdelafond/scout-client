@@ -1,3 +1,7 @@
+# 5.8.7
+
+* Upgrade to use server_metrics 1.2.2 (disk metrics in English, more forgiving Linux check)
+
 # 5.8.6
 
 * Upgrade to use server_metrics 1.2.0 (performance improvements)
