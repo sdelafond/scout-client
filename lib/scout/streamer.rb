@@ -112,11 +112,11 @@ module Scout
 
     def gather_system_metric_reports(system_metric_collectors)
       system_metric_data = {}
-      all_collectors = { :disk      => ServerMetrics::Disk,
-                         :cpu       => ServerMetrics::Cpu,
-                         :memory    => ServerMetrics::Memory,
-                         :network   => ServerMetrics::Network,
-                         :processes => ServerMetrics::Processes }
+      all_collectors = { :disk    => ServerMetrics::Disk,
+                         :cpu     => ServerMetrics::Cpu,
+                         :memory  => ServerMetrics::Memory,
+                         :network => ServerMetrics::Network,
+                         :process => ServerMetrics::Processes }
 
       realtime_collectors = all_collectors.select { |key, klass| system_metric_collectors.include?(key) }
       realtime_collectors.each_pair do |key, klass|
