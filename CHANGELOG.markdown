@@ -1,3 +1,7 @@
+# 5.8.8
+
+* Counters report nil values on initial report, rather than not reporting
+
 # 5.8.7
 
 * Upgrade to use server_metrics 1.2.2 (disk metrics in English, more forgiving Linux check)
