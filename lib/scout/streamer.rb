@@ -119,7 +119,9 @@ module Scout
                          :process => ServerMetrics::Processes }
 
       realtime_collectors = all_collectors.select { |key, klass| system_metric_collectors.include?(key) }
-      realtime_collectors.each_pair do |key, klass|
+      realtime_collectors.each do |key_klass|
+        key = key_klass.first
+        klass = key_klass.last
         begin
           collector_previous_run = @history[:server_metrics][key]
           collector = collector_previous_run.is_a?(Hash) ? klass.from_hash(collector_previous_run) : klass.new() # continue with last run, or just create new

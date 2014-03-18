@@ -1,3 +1,7 @@
+# 5.9.0
+
+* Streaming fix for Ruby 1.8.7
+
 # 5.8.9
 
 * Added support for realtime system metrics (processes, cpu, memory, disks, network devices)
