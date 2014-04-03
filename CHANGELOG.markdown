@@ -1,3 +1,7 @@
+# 5.9.1
+
+* Upgrade to use server_metrics 1.2.4 (osx disk capacity)
+
 # 5.9.0
 
 * Streaming fix for Ruby 1.8.7
