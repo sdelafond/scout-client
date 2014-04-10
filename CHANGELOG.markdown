@@ -1,3 +1,7 @@
+# 5.9.1
+
+* Fix for network realtime streaming
+
 # 5.9.0
 
 * Streaming fix for Ruby 1.8.7
