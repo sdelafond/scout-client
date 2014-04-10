@@ -1,6 +1,10 @@
-# 5.9.1
+# 5.9.2
 
 * Fix for network realtime streaming
+
+# 5.9.1
+
+* Upgrade to use server_metrics 1.2.4 (osx disk capacity)
 
 # 5.9.0
 
