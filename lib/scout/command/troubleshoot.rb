@@ -29,6 +29,7 @@ module Scout
         bullet "Hostname", @hostname
         bullet "History file", history
         bullet "Version", Scout::VERSION
+        bullet "server_metrics", ServerMetrics::VERSION
 
         heading "Latest Log"
         contents=File.read(log_path) rescue "Log not found at #{log_path}"

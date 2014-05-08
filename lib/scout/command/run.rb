@@ -7,7 +7,7 @@ module Scout
         key = @args.first
         # TODO: this is an awkward way to force creation of the config directory. Could use a little refactoring.
         configuration_directory = config_dir
-        log.debug("Running Scout [#{Scout::VERSION}] on #{@hostname}") if log
+        log.debug("Running Scout [#{Scout::VERSION}] with server_metrics [#{ServerMetrics::VERSION}] on #{@hostname}") if log
         log.debug("Configuration directory is #{configuration_directory} ") if log
         # TODO: too much external logic of command doing things TO server. This should be moved into the server class.
         @scout = Scout::Server.new(server, key, history, log, server_name, @http_proxy, @https_proxy, @roles, @hostname, @environment)
