@@ -51,6 +51,7 @@ module Scout
       @history_tmp_file = history_file+'.tmp'
       @plugin_config = load_plugin_configs(@plugin_config_path)
       @data_file = Scout::DataFile.new(@history_file,@logger)
+      @started_at = Time.now # the checkin method needs to know when this scout client started
       # the block is only passed for install and test, since we split plan retrieval outside the lockfile for run
       if block_given?
         load_history
@@ -603,7 +604,7 @@ module Scout
       debug """
 #{PP.pp(@checkin, '')}
       """
-      @history['last_checkin'] = Time.now.to_i # might have to save the time of invocation and use here to prevent drift
+      @history['last_checkin'] = @started_at # use the time of invocation here to prevent drift caused by e.g. slow plugins
       io   =  StringIO.new
       gzip =  Zlib::GzipWriter.new(io)
       gzip << @checkin.to_json
