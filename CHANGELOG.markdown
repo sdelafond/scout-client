@@ -1,3 +1,7 @@
+# 5.9.4
+
+* Use the invocation time when recording last_checkin date
+
 # 5.9.3
 
 * Add server_metrics version to debug log, bump server_metrics dependency to 1.2.5
