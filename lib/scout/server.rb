@@ -374,9 +374,13 @@ module Scout
       run_time    = Time.now
       delta       = last_run.nil? ? nil : run_time -
                                           (last_run + plugin['interval'] * 60)
-      if last_run.nil? or delta.between?(-RUN_DELTA, 0) or delta >= 0
-        debug "Plugin is past interval and needs to be run.  " +
-              "(last run:  #{last_run || 'nil'})"
+      if last_run.nil? or last_run > run_time or delta.between?(-RUN_DELTA, 0) or delta >= 0
+        if last_run != nil and (last_run > run_time)
+          debug "Plugin last_run is in the future. Running the plugin now. (last run:  #{last_run})"
+        else
+          debug "Plugin is past interval and needs to be run.  " +
+                "(last run:  #{last_run || 'nil'})"
+        end
         code_to_run = plugin['code']
         if plugin_id && plugin_id != ""
           override_path=File.join(@local_plugin_path, "#{plugin_id}.rb")

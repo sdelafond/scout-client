@@ -1,3 +1,7 @@
+# 5.9.5
+
+* If plugin last_run is in the future, run the plugins now
+
 # 5.9.4
 
 * Use the invocation time when recording last_checkin date
