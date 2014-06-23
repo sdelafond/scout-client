@@ -611,7 +611,7 @@ module Scout
       @history['last_checkin'] = @started_at # use the time of invocation here to prevent drift caused by e.g. slow plugins
       io   =  StringIO.new
       gzip =  Zlib::GzipWriter.new(io)
-      gzip << @checkin.to_json
+      gzip << @checkin.to_json.force_encoding("UTF-8")
       gzip.close
       post( urlify(:checkin),
             "Unable to check in with the server.",

@@ -1,3 +1,7 @@
+# 5.9.6
+
+* Enforce UTF-8 encoding of @checkin data
+
 # 5.9.5
 
 * If plugin last_run is in the future, run the plugins now
