@@ -1,24 +1,19 @@
 PATH
   remote: .
   specs:
-    scout (5.6.6)
+    scout (5.9.1)
       elif
+      server_metrics (>= 1.2.4)
 
 GEM
   remote: http://rubygems.org/
   specs:
-    activerecord (2.2.2)
-      activesupport (= 2.2.2)
-    activesupport (2.2.2)
     elif (0.1.0)
-    mysql (2.8.1)
-    newrelic_rpm (3.5.3.25)
+    server_metrics (1.2.5)
 
 PLATFORMS
   ruby
 
 DEPENDENCIES
-  activerecord (= 2.2.2)
-  mysql
-  newrelic_rpm
   scout!
+  server_metrics
