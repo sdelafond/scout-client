@@ -7,5 +7,5 @@ log/*
 working_dir/
 .rvmrc
 .ruby-version
-Gemfile.lock
+#Gemfile.lock
 .bundle
