@@ -1,3 +1,4 @@
+
 require 'rubygems'
 require 'json'
 
@@ -14,6 +15,11 @@ module Scout
       @history_file = history_file
       @history      = Hash.new
       @logger       = logger
+      @command_pipe      = IO.new(3, "r") # The read pipe of scoutd is passed in as fd 3
+
+      @streaming_key = streaming_key
+      @system_metric_collectors = system_metric_collectors
+      @hostname = hostname
 
       @plugin_hashes = []
 
@@ -24,7 +30,7 @@ module Scout
 
       #[[:app_id,p_app_id],[:key,p_key],[:secret,p_secret]].each { |p| Pusher.send p.first, p.last}
 
-      streamer_start_time = Time.now
+      @streamer_start_time = Time.now
 
       info("Streamer PID=#{$$} starting")
 
@@ -35,18 +41,23 @@ module Scout
       @all_plugins = Array(@history["old_plugins"])
       info("Starting streamer with key=#{streaming_key} and plugin_ids: #{plugin_ids.inspect}. System metric collectors: #{system_metric_collectors.inspect}. #{@history_file} includes plugin ids #{@all_plugins.map{|p|p['id']}.inspect}. http_proxy = #{http_proxy}")
 
-      # selected_plugins is subset of the @all_plugins -- those selected in plugin_ids
-      selected_plugins = compile_plugins(@all_plugins, plugin_ids)
+      # @selected_plugins is subset of the @all_plugins -- those selected in plugin_ids
+      @selected_plugins = compile_plugins(@all_plugins, plugin_ids)
+    end
 
-
+    def report_loop
       # main loop. Continue running until global $continue_streaming is set to false OR we've been running for MAX DURATION
       iteration=1 # use this to log the data at a couple points
-      while(streamer_start_time+MAX_DURATION > Time.now && @@continue_streaming) do
-        plugins = gather_plugin_reports(selected_plugins)
+      while(@streamer_start_time+MAX_DURATION > Time.now && @@continue_streaming) do
+        info("Streaming iteration #{iteration}.")
 
-        system_metric_data = gather_system_metric_reports(system_metric_collectors)
+        read_command_pipe
 
-        bundle={:hostname=>hostname,
+        plugins = gather_plugin_reports(@selected_plugins)
+
+        system_metric_data = gather_system_metric_reports(@system_metric_collectors)
+
+        bundle={:hostname=>@hostname,
                  :server_time=>Time.now.strftime("%I:%M:%S %p"),
                  :server_unixtime => Time.now.to_i,
                  :num_processes=>`ps -e | wc -l`.chomp.to_i,
@@ -55,7 +66,7 @@ module Scout
 
         # stream the data via pusherapp
         begin
-          Pusher[streaming_key].trigger!('server_data', bundle)
+          Pusher[@streaming_key].trigger!('server_data', bundle)
         rescue Pusher::Error => e
           # (Pusher::AuthenticationError, Pusher::HTTPError, or Pusher::Error)
           error "Error pushing data: #{e.message}"
@@ -70,15 +81,40 @@ module Scout
         iteration+=1
       end
 
-      info("Streamer PID=#{$$} ending.")
-
-      # remove the pid file before exiting
-      streamer_pid_file=File.join(File.dirname(history_file),"scout_streamer.pid")
-      File.unlink(streamer_pid_file) if File.exist?(streamer_pid_file)
+      clean_exit
     end
 
-    
+
     private
+
+    def clean_exit
+      info("Streamer PID=#{$$} ending.")
+      # remove the pid file before exiting
+      streamer_pid_file=File.join(File.dirname(@history_file),"scout_streamer.pid")
+      File.unlink(streamer_pid_file) if File.exist?(streamer_pid_file)
+      exit(0)
+    end
+
+    def read_command_pipe
+      msg = @command_pipe.read_nonblock(8192) rescue nil
+      info("Got message from command pipe: #{msg}") if msg
+      case msg
+      when /^start,/
+        tokens = msg.split(",")[5..-1] # Get the plugin ids and system metrics
+        numerical_tokens = tokens.select { |token| token =~ /\A\d+\Z/ }
+        system_metric_collectors = (tokens - numerical_tokens).map(&:to_sym)
+        plugin_ids = numerical_tokens.map(&:to_i)
+        info("Adding metrics - plugins: #{plugin_ids} - system_metrics: #{system_metric_collectors}")
+        add_metrics(plugin_ids, system_metric_collectors)
+      when /^stop$/
+        clean_exit
+      end
+    end
+
+    def add_metrics(plugin_ids, system_metric_collectors)
+      @selected_plugins = compile_plugins(@all_plugins, plugin_ids)
+      @system_metric_collectors = system_metric_collectors
+    end
 
     def gather_plugin_reports(selected_plugins)
       plugins = []

@@ -49,6 +49,7 @@ module Scout
     def start(streamer_args)
       history,streaming_key,p_app_id,p_key,p_secret,plugin_ids,system_metric_collectors,hostname,http_proxy,log = streamer_args
       @scout = Scout::Streamer.new(history, streaming_key, p_app_id, p_key, p_secret, plugin_ids, system_metric_collectors, hostname, http_proxy, log)
+      @scout.report_loop
     end
 
     # this method is called by DaemonSpawn's class stop method.

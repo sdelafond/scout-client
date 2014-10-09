@@ -616,8 +616,10 @@ module Scout
       post( urlify(:checkin),
             "Unable to check in with the server.",
             io.string,
-            "Content-Type"     => "application/json",
-            "Content-Encoding" => "gzip" )
+            { "Content-Type"     => "application/json",
+            "Content-Encoding" => "gzip" },
+            &lambda {|resp| puts Hash['success' => true, 'server_response' => resp].to_json }
+          )
     rescue Exception
       error "Unable to check in with the server."
       debug $!.class.to_s

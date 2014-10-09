@@ -37,9 +37,10 @@ module DaemonSpawn
       exit 0
     end
 
-    fork do
-      Process.setsid
-      exit if fork
+    # Don't fork under scoutd
+    #fork do
+      #Process.setsid
+      #exit if fork
       open(daemon.pid_file, 'w') { |f| f << Process.pid }
       Dir.chdir daemon.working_dir
       old_umask = File.umask 0000
@@ -51,7 +52,7 @@ module DaemonSpawn
       STDERR.reopen STDOUT
       trap("TERM") {daemon.stop; exit}
       daemon.start(args)
-    end
+    #end
     puts("#{daemon.app_name} started.") if $stdin.tty?
   end
 
