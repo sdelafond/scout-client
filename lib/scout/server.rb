@@ -149,6 +149,7 @@ module Scout
             # Add local plugins to the plan.
             @plugin_plan += get_local_plugins
             @plugin_plan += get_munin_plugins
+            @plugin_plan += get_nagios_plugins
           rescue Exception =>e
             fatal "Plan from server was malformed: #{e.message} - #{e.backtrace}"
             exit
@@ -225,6 +226,34 @@ module Scout
           nil
         end
       end.compact
+    end
+
+    def get_nagios_plugins
+      @nrpe_config_file_path = '/etc/nagios/nrpe.cfg'
+      nrpe_config = File.read(@nrpe_config_file_path)
+      commands = {}
+      nrpe_config.split("\n").each do |l|
+        # command[check_total_procs]=/usr/lib/nagios/plugins/check_procs -w 150 -c 200 
+        # TODO - don't parse commands w/remote args. : command[check_load]=/usr/lib/nagios/plugins/check_load -w $ARG1$ -c $ARG2$
+        match = l.match(/(^command\[(.*)\]=)(.*)/)
+        if match
+          commands[match[2]] = match[3]
+        end
+      end
+      # todo - ensure cmd file exists
+      plugins = []
+      commands.each do |name,cmd|
+        plugins << {
+          'name'            => name,
+          'local_filename'  => name,
+          'origin'          => 'LOCAL',
+          'type'            => 'NAGIOS',
+          'code'            => name,
+          'interval'        => 0,
+          'options'         => {"cmd" => cmd}
+        }
+      end
+      plugins
     end
 
     # To distribute pings across a longer timeframe, the agent will sleep for a given
@@ -424,7 +453,7 @@ module Scout
             plugin['origin'] = nil
           end
         end
-        if plugin['type'].to_s != 'MUNIN'
+        if plugin['type'].to_s != 'MUNIN' and plugin['type'].to_s != 'NAGIOS'
           debug "Compiling plugin..."
           begin
             eval( code_to_run,
@@ -452,11 +481,14 @@ module Scout
           end
         elsif plugin['type'].to_s == 'MUNIN'
           Plugin.last_defined = MuninPlugin
-        end # if !munin
+        elsif plugin['type'].to_s == 'NAGIOS'
+          Plugin.last_defined = NagiosPlugin
+          options = plugin['options'] # todo - more native way to handle passing the nagios command
+        end
 
         debug "Loading plugin..."
         if job = Plugin.last_defined.load( last_run, (memory || Hash.new), options)
-          job.file_name = plugin['name'] if plugin['type'] == 'MUNIN'
+          job.file_name = plugin['name'] if plugin['type'].to_s == 'MUNIN' and plugin['type'].to_s == 'NAGIOS'
           info "Plugin loaded."
           debug "Running plugin..."
           begin
