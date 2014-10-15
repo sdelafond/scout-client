@@ -301,7 +301,7 @@ module Scout
     # @plugin_execution_plan is populated by calling fetch_plan
     def run_plugins_by_plan
       prepare_checkin
-      @plugin_plan.each_with_index do |plugin|
+      @plugin_plan.each do |plugin|
         begin
           process_plugin(plugin)
         rescue Exception
