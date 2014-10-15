@@ -1,14 +1,8 @@
 module Scout
   class MuninPlugin < Scout::Plugin
-  	attr_accessor :file_name, :dir
-
-    # The file name of the munin plugin to run inside the munin plugins directory.
-    def initialize(options)
-      self.file_name = options['file_name']
-      self.dir = options['dir']
-    end
-
+  	attr_accessor :file_name
   	def build_report
+  		dir = "/etc/munin/plugins"
   		output = IO.popen("cd #{dir};munin-run #{file_name}").readlines[0..19]
   		data = {}
   		output.each do |l|

@@ -1,14 +1,18 @@
 module Scout
   class NagiosPlugin < Scout::Plugin
-  	attr_accessor :file_name
+    attr_accessor :cmd
+
+    # The command, with arguments, to run a nagios plugin.
+    # Ex: /usr/lib/nagios/plugins/check_procs -w 150 -c 200
+    def initialize(cmd)
+      self.cmd = cmd
+    end
 
     def build_report
-      @nagios_plugin_command = option('cmd')
-
       #return if !sanity_check
 
       # We only support parsing the first line of nagios plugin output
-      IO.popen("#{@nagios_plugin_command}") {|io| @nagios_output = io.readlines[0] }
+      IO.popen("#{cmd}") {|io| @nagios_output = io.readlines[0] }
       
       # Use exit status integer for OK/WARN/ERROR/CRIT status
       plugin_status = $?.exitstatus
@@ -19,12 +23,12 @@ module Scout
 
     # todo - need to remove arguments
     def sanity_check
-      puts @nagios_plugin_command
-      if @nagios_plugin_command.nil?
+      puts cmd
+      if cmd.nil?
         error("The nagios_plugin_command is not defined", "You must configure the full path of the nagios plugin command in nagios_plugin_command")
-      elsif !File.exists?(@nagios_plugin_command)
+      elsif !File.exists?(cmd)
         error("The nagios_plugin_command file does not exist", "The nagios_plugin_command file does not exist.")
-      elsif !File.executable?(@nagios_plugin_command)
+      elsif !File.executable?(cmd)
         error("Can not execute nagios_plugin_command", "The nagios_plugin_command file is not executable.")
       end
       data_for_server[:errors].any? ? false : true

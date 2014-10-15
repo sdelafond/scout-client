@@ -1,14 +1,15 @@
-
+$LOAD_PATH << File.join(File.dirname(__FILE__), 'third_party_plugins')
 Dir.glob(File.join(File.dirname(__FILE__), *%w[.. .. vendor *])).each do |dir|
   $LOAD_PATH << File.join(dir,"lib")
 end
-
 require "multi_json"
 require "pusher"
 require "httpclient"
+require "third_party_plugins"
 
 module Scout
   class Server < Scout::ServerBase
+    include ThirdPartyPlugins
     # 
     # A plugin cannot take more than DEFAULT_PLUGIN_TIMEOUT seconds to execute, 
     # otherwise, a timeout error is generated.  This can be overriden by
@@ -28,7 +29,7 @@ module Scout
     attr_reader :client_key
 
     # Creates a new Scout Server connection.
-    def initialize(server, client_key, history_file, logger=nil, server_name=nil, http_proxy='', https_proxy='', roles='', hostname=nil, environment='')
+    def initialize(server, client_key, history_file, logger=nil, server_name=nil, http_proxy='', https_proxy='', roles='', hostname=nil, environment='', munin_plugin_path, nrpe_config_file_path)
       @server       = server
       @client_key   = client_key
       @history_file = history_file
@@ -40,6 +41,8 @@ module Scout
       @roles        = roles || ''
       @hostname     = hostname
       @environment  = environment
+      @munin_plugin_path = munin_plugin_path
+      @nrpe_config_file_path = nrpe_config_file_path
       @plugin_plan  = []
       @plugins_with_signature_errors = []
       @directives   = {} # take_snapshots, interval, sleep_interval
@@ -160,6 +163,7 @@ module Scout
         @plugin_plan = Array(@history["old_plugins"])
         @plugin_plan += get_local_plugins
         @plugin_plan += get_munin_plugins
+        @plugin_plan += get_nagios_plugins
         @directives = @history["directives"] || Hash.new
 
       end
@@ -198,62 +202,6 @@ module Scout
           nil
         end
       end.compact
-    end
-
-    def get_munin_plugins
-      @munin_plugin_path = '/etc/munin/plugins'
-      munin_plugin_path=Dir.glob(File.join(@munin_plugin_path,"*"))
-      munin_plugin_path.map do |plugin_path|
-        name    = File.basename(plugin_path)
-        options = if directives = @plugin_plan.find { |plugin| plugin['filename'] == name }
-                     directives['options']
-                  else 
-                    nil
-                  end
-        begin
-          plugin = {
-            'name'            => name,
-            'local_filename'  => name,
-            'origin'          => 'LOCAL',
-            'type'            => 'MUNIN',
-            'code'            => name,
-            'interval'        => 0,
-            'options'         => options
-          }
-          plugin
-        rescue => e
-          info "Error trying to read local plugin: #{plugin_path} -- #{e.backtrace.join('\n')}"
-          nil
-        end
-      end.compact
-    end
-
-    def get_nagios_plugins
-      @nrpe_config_file_path = '/etc/nagios/nrpe.cfg'
-      nrpe_config = File.read(@nrpe_config_file_path)
-      commands = {}
-      nrpe_config.split("\n").each do |l|
-        # command[check_total_procs]=/usr/lib/nagios/plugins/check_procs -w 150 -c 200 
-        # TODO - don't parse commands w/remote args. : command[check_load]=/usr/lib/nagios/plugins/check_load -w $ARG1$ -c $ARG2$
-        match = l.match(/(^command\[(.*)\]=)(.*)/)
-        if match
-          commands[match[2]] = match[3]
-        end
-      end
-      # todo - ensure cmd file exists
-      plugins = []
-      commands.each do |name,cmd|
-        plugins << {
-          'name'            => name,
-          'local_filename'  => name,
-          'origin'          => 'LOCAL',
-          'type'            => 'NAGIOS',
-          'code'            => name,
-          'interval'        => 0,
-          'options'         => {"cmd" => cmd}
-        }
-      end
-      plugins
     end
 
     # To distribute pings across a longer timeframe, the agent will sleep for a given
@@ -453,7 +401,7 @@ module Scout
             plugin['origin'] = nil
           end
         end
-        if plugin['type'].to_s != 'MUNIN' and plugin['type'].to_s != 'NAGIOS'
+        if !third_party?(plugin)
           debug "Compiling plugin..."
           begin
             eval( code_to_run,
@@ -479,16 +427,14 @@ module Scout
               end
             end
           end
-        elsif plugin['type'].to_s == 'MUNIN'
+        elsif munin?(plugin)
           Plugin.last_defined = MuninPlugin
-        elsif plugin['type'].to_s == 'NAGIOS'
+        elsif nagios?(plugin)
           Plugin.last_defined = NagiosPlugin
-          options = plugin['options'] # todo - more native way to handle passing the nagios command
         end
 
         debug "Loading plugin..."
-        if job = Plugin.last_defined.load( last_run, (memory || Hash.new), options)
-          job.file_name = plugin['name'] if plugin['type'].to_s == 'MUNIN' and plugin['type'].to_s == 'NAGIOS'
+        if job = third_party?(plugin) ? load_third_party(plugin) : Plugin.last_defined.load( last_run, (memory || Hash.new), options)
           info "Plugin loaded."
           debug "Running plugin..."
           begin
@@ -555,7 +501,7 @@ module Scout
         debug "Removing plugin code..."
         begin
           klasses = Plugin.last_defined.to_s.split("::")
-          Object.send(:remove_const, klasses.include?("Scout") ? klasses.last : klasses.first) # munin plugins have "Scout::Munin". don't want to remove 'Scout'
+          Object.send(:remove_const, klasses.include?("Scout") ? klasses.last : klasses.first) # munin and nagios plugins have "Scout::Munin/Nagios". don't want to remove 'Scout'.
           Plugin.last_defined = nil
           info "Plugin Removed."
         rescue
@@ -682,11 +628,11 @@ module Scout
       gzip =  Zlib::GzipWriter.new(io)
       gzip << @checkin.to_json
       gzip.close
-      post( urlify(:checkin),
-            "Unable to check in with the server.",
-            io.string,
-            "Content-Type"     => "application/json",
-            "Content-Encoding" => "gzip" )
+      # post( urlify(:checkin),
+      #       "Unable to check in with the server.",
+      #       io.string,
+      #       "Content-Type"     => "application/json",
+      #       "Content-Encoding" => "gzip" )
     rescue Exception
       error "Unable to check in with the server."
       debug $!.class.to_s
