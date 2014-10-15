@@ -1,11 +1,9 @@
-$LOAD_PATH << File.join(File.dirname(__FILE__), 'third_party_plugins')
 Dir.glob(File.join(File.dirname(__FILE__), *%w[.. .. vendor *])).each do |dir|
   $LOAD_PATH << File.join(dir,"lib")
 end
 require "multi_json"
 require "pusher"
 require "httpclient"
-require "third_party_plugins"
 
 module Scout
   class Server < Scout::ServerBase
