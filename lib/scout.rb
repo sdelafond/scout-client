@@ -2,6 +2,7 @@
 
 require "rubygems" # only required during development, so server_metrics will load
 require "server_metrics"
+require "elif"
 
 require "scout/version"
 

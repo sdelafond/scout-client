@@ -3,7 +3,11 @@
 
 #$KCODE   = "u"  # -Ku
 
-$LOAD_PATH << File.join(File.dirname(__FILE__), *%w[.. lib])
+# Customized for including libraries bundled in the scoutd package (system_metrics and elif)
+Dir.glob(File.join(File.dirname(__FILE__), *%w[.. .. *])).each do |dir|
+  $LOAD_PATH.unshift(File.join(dir,"lib"))
+end
+
 require "scout"
 
 Scout::Command.dispatch(ARGV)
