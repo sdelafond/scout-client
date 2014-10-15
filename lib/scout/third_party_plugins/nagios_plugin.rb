@@ -9,7 +9,7 @@ module Scout
     end
 
     def build_report
-      #return if !sanity_check
+      return if !sanity_check
 
       # We only support parsing the first line of nagios plugin output
       IO.popen("#{cmd}") {|io| @nagios_output = io.readlines[0] }
@@ -23,13 +23,12 @@ module Scout
 
     # todo - need to remove arguments
     def sanity_check
-      puts cmd
-      if cmd.nil?
-        error("The nagios_plugin_command is not defined", "You must configure the full path of the nagios plugin command in nagios_plugin_command")
-      elsif !File.exists?(cmd)
-        error("The nagios_plugin_command file does not exist", "The nagios_plugin_command file does not exist.")
-      elsif !File.executable?(cmd)
-        error("Can not execute nagios_plugin_command", "The nagios_plugin_command file is not executable.")
+      match = cmd.match(/(\S+)/)
+      file = match[1].to_s
+      if !File.exists?(file)
+        error("The Nagios plugin file does not exist", "The file does not exist: #{file}.")
+      elsif !File.executable?(file)
+        error("Can not execute Nagios plugin", "The file is not executable: #{file}.")
       end
       data_for_server[:errors].any? ? false : true
     end
