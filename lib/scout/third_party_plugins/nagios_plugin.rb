@@ -21,7 +21,6 @@ module Scout
       report(data.merge({:status => plugin_status}))
     end
 
-    # todo - need to remove arguments
     def sanity_check
       match = cmd.match(/(\S+)/)
       file = match[1].to_s
