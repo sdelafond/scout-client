@@ -1,3 +1,7 @@
+# 5.9.6
+
+* Added Nagios plugin support via the `--nagios` flag.
+
 # 5.9.5
 
 * If plugin last_run is in the future, run the plugins now
