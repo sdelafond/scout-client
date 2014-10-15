@@ -22,6 +22,10 @@ module ThirdPartyPlugins
   	end
   end
 
+  def get_third_party_plugins
+		(get_munin_plugins + get_nagios_plugins).compact
+  end
+
   def get_munin_plugins
 	  return [] unless @munin_plugin_path
 	  munin_plugin_path=Dir.glob(File.join(@munin_plugin_path,"*"))

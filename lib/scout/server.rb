@@ -147,10 +147,8 @@ module Scout
 
             @new_plan = true # used in determination if we should checkin this time or not
 
-            # Add local plugins to the plan.
             @plugin_plan += get_local_plugins
-            @plugin_plan += get_munin_plugins
-            @plugin_plan += get_nagios_plugins
+            @plugin_plan += get_third_party_plugins
           rescue Exception =>e
             fatal "Plan from server was malformed: #{e.message} - #{e.backtrace}"
             exit
@@ -160,8 +158,7 @@ module Scout
         info "Plan not modified."
         @plugin_plan = Array(@history["old_plugins"])
         @plugin_plan += get_local_plugins
-        @plugin_plan += get_munin_plugins
-        @plugin_plan += get_nagios_plugins
+        @plugin_plan += get_third_party_plugins
         @directives = @history["directives"] || Hash.new
 
       end
@@ -304,8 +301,7 @@ module Scout
     # @plugin_execution_plan is populated by calling fetch_plan
     def run_plugins_by_plan
       prepare_checkin
-      @plugin_plan.each_with_index do |plugin,i|
-        #next if plugin['name'] != 'diskstats'
+      @plugin_plan.each_with_index do |plugin|
         begin
           process_plugin(plugin)
         rescue Exception
@@ -626,11 +622,11 @@ module Scout
       gzip =  Zlib::GzipWriter.new(io)
       gzip << @checkin.to_json
       gzip.close
-      # post( urlify(:checkin),
-      #       "Unable to check in with the server.",
-      #       io.string,
-      #       "Content-Type"     => "application/json",
-      #       "Content-Encoding" => "gzip" )
+      post( urlify(:checkin),
+            "Unable to check in with the server.",
+            io.string,
+            "Content-Type"     => "application/json",
+            "Content-Encoding" => "gzip" )
     rescue Exception
       error "Unable to check in with the server."
       debug $!.class.to_s
