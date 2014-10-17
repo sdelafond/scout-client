@@ -113,7 +113,7 @@ module Scout
 
     def add_metrics(plugin_ids, system_metric_collectors)
       @selected_plugins = compile_plugins(@all_plugins, plugin_ids)
-      @system_metric_collectors = system_metric_collectors
+      @system_metric_collectors += system_metric_collectors
     end
 
     def gather_plugin_reports(selected_plugins)
