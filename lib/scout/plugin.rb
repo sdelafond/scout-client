@@ -116,16 +116,16 @@ module Scout
         
         if "#{kind}" == "report"
           def report(new_entry)
-            reports << new_entry
+            reports << new_entry.convert_to_utf8
           end
         elsif "#{kind}" == "summary"
           def summary(new_entry)
-            summaries << new_entry
+            summaries << new_entry.convert_to_utf8
           end
         else
           def #{kind}(*fields)
             #{kind}s << ( fields.first.is_a?(Hash) ?
-                          fields.first :
+                          fields.first.convert_to_utf8 :
                           {:subject => fields.first.convert_to_utf8, :body => fields.last.convert_to_utf8} )
           end
         end
