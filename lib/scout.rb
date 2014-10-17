@@ -5,6 +5,7 @@ require "server_metrics"
 
 require "scout/version"
 
+require "scout/helpers"
 require "scout/http"
 require "scout/command"
 require "scout/plugin"

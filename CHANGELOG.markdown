@@ -1,3 +1,7 @@
+# 5.9.9
+
+* Convert alert/error/report strings to UTF-8
+
 # 5.9.7.1
 
 * write a bit more information about system metrics in the realtime log

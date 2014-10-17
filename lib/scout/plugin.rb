@@ -126,7 +126,7 @@ module Scout
           def #{kind}(*fields)
             #{kind}s << ( fields.first.is_a?(Hash) ?
                           fields.first :
-                          {:subject => fields.first, :body => fields.last} )
+                          {:subject => fields.first.convert_to_utf8, :body => fields.last.convert_to_utf8} )
           end
         end
         alias_method :add_#{kind}, :#{kind}
