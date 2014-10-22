@@ -106,6 +106,7 @@ module Scout
         plugin_ids = numerical_tokens.map(&:to_i)
         info("Adding metrics - plugins: #{plugin_ids} - system_metrics: #{system_metric_collectors}")
         add_metrics(plugin_ids, system_metric_collectors)
+        @streamer_start_time = Time.now
       when /^stop$/
         clean_exit
       end
