@@ -1,6 +1,7 @@
 
 require 'rubygems'
 require 'json'
+require 'pusher-client'
 
 module Scout
   class PluginTimeoutError < RuntimeError; end
@@ -10,25 +11,25 @@ module Scout
 
     # * history_file is the *path* to the history file
     # * plugin_ids is an array of integers
-    def initialize(history_file, streaming_key, p_app_id, p_key, p_secret, plugin_ids, system_metric_collectors, hostname, http_proxy, logger = nil)
+    def initialize(history_file, streaming_key, chart_id, p_auth_url, p_app_id, p_key, p_user_id, plugin_ids, system_metric_collectors, hostname, http_proxy, logger = nil)
       @@continue_streaming = true
       @history_file = history_file
       @history      = Hash.new
       @logger       = logger
       @command_pipe      = IO.new(3, "r") # The read pipe of scoutd is passed in as fd 3
 
-      @streaming_key = streaming_key
+      @streaming_key = "private-#{streaming_key}" # This variable name should be changed to reflect the fact that it is a private channel
       @system_metric_collectors = system_metric_collectors
       @hostname = hostname
 
       @plugin_hashes = []
 
-      Pusher.app_id=p_app_id
-      Pusher.key=p_key
-      Pusher.secret=p_secret
-      Pusher.http_proxy = http_proxy if http_proxy !=""
-
-      #[[:app_id,p_app_id],[:key,p_key],[:secret,p_secret]].each { |p| Pusher.send p.first, p.last}
+      @pusher_auth_url = p_auth_url
+      @chart_id = chart_id # Need to decide how to determine which chart id to auth against or use a new auth url for agents
+      # TODO - how can we use proxies with PusherClient?
+      @pusher_socket = PusherClient::Socket.new(p_key, {:auth_method => data_channel_auth, :logger => @logger, :encrypted => true})
+      @pusher_socket.connect(true) # connect to pusher
+      @pusher_socket.subscribe(@streaming_key, {:user_id => p_user_id}) # the user_id for the private channel sent with the pusher auth data
 
       @streamer_start_time = Time.now
 
@@ -66,9 +67,9 @@ module Scout
 
         # stream the data via pusherapp
         begin
-          Pusher[@streaming_key].trigger!('server_data', bundle)
-        rescue Pusher::Error => e
-          # (Pusher::AuthenticationError, Pusher::HTTPError, or Pusher::Error)
+          @pusher_socket.send_channel_event(@streaming_key, 'client-server_data', bundle)
+        rescue Exception => e
+          # TODO - detect pusher errors and see if we can reconnect or stop trying. This can potentially log a lot of data after a while
           error "Error pushing data: #{e.message}"
         end
 
@@ -84,14 +85,23 @@ module Scout
       clean_exit
     end
 
-
     private
+
+    def data_channel_auth
+      return Proc.new {|socket_id, channel|
+        uri = URI(@pusher_auth_url)
+        #http = Scout::build_http(auth_url) # We should use scout's http object so we go through any proxies
+        response = Net::HTTP.post_form(uri, 'id' => @chart_id, 'socket_id' => socket_id, 'channel_name' => channel.name, 'channel_user_data' => channel.user_data, 'response_auth_key_only' => true)
+        response.body
+      }
+    end
 
     def clean_exit
       info("Streamer PID=#{$$} ending.")
       # remove the pid file before exiting
       streamer_pid_file=File.join(File.dirname(@history_file),"scout_streamer.pid")
       File.unlink(streamer_pid_file) if File.exist?(streamer_pid_file)
+      # TODO: leave pusher channels and disconnect the pusher client
       exit(0)
     end
 
@@ -100,7 +110,7 @@ module Scout
       info("Got message from command pipe: #{msg}") if msg
       case msg
       when /^start,/
-        tokens = msg.split(",")[5..-1] # Get the plugin ids and system metrics
+        tokens = msg.split(",")[7..-1] # Get the plugin ids and system metrics
         numerical_tokens = tokens.select { |token| token =~ /\A\d+\Z/ }
         system_metric_collectors = (tokens - numerical_tokens).map(&:to_sym)
         plugin_ids = numerical_tokens.map(&:to_i)

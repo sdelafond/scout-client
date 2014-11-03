@@ -4,7 +4,6 @@ Dir.glob(File.join(File.dirname(__FILE__), *%w[.. .. vendor *])).each do |dir|
 end
 
 require "multi_json"
-require "pusher"
 require "httpclient"
 
 module Scout
