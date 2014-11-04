@@ -119,7 +119,7 @@ module Scout
 
     def read_command_pipe
       msg = @command_pipe.read_nonblock(8192) rescue nil
-      info("Got message from command pipe: #{msg}") if msg
+      info("Received message from command pipe: #{msg}") if msg
       case msg
       when /^start,/
         tokens = msg.split(",")[7..-1] # Get the plugin ids and system metrics
