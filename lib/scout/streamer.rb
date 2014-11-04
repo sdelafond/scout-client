@@ -27,7 +27,7 @@ module Scout
       @pusher_auth_url = p_auth_url
       @chart_id = chart_id # Need to decide how to determine which chart id to auth against or use a new auth url for agents
       # TODO - how can we use proxies with PusherClient?
-      @pusher_socket = PusherClient::Socket.new(p_key, {:auth_method => data_channel_auth, :logger => @logger, :encrypted => true})
+      @pusher_socket = PusherClient::Socket.new(p_key, {:auth_method => data_channel_auth, :logger => ENV['SCOUT_PUSHER_DEBUG'].nil? ? Logger.new(nil) : @logger, :encrypted => true})
       @pusher_socket.connect(true) # connect to pusher
       @pusher_socket.subscribe(@streaming_key, {:user_id => p_user_id}) # the user_id for the private channel sent with the pusher auth data
 
@@ -49,6 +49,7 @@ module Scout
     def report_loop
       # main loop. Continue running until global $continue_streaming is set to false OR we've been running for MAX DURATION
       iteration=1 # use this to log the data at a couple points
+      consecutive_pusher_errors = 0 # used to exit if we reach a certain number of consecutive pusher errors in this loop
       while(@streamer_start_time+MAX_DURATION > Time.now && @@continue_streaming) do
         info("Streaming iteration #{iteration}.")
 
@@ -66,11 +67,22 @@ module Scout
                  :system_metrics => system_metric_data}
 
         # stream the data via pusherapp
+        pusher_error = nil
         begin
           @pusher_socket.send_channel_event(@streaming_key, 'client-server_data', bundle)
         rescue Exception => e
-          # TODO - detect pusher errors and see if we can reconnect or stop trying. This can potentially log a lot of data after a while
+          pusher_error = true
           error "Error pushing data: #{e.message}"
+        end
+
+        if pusher_error.nil?
+          consecutive_pusher_errors = 0
+        else
+          consecutive_pusher_errors += 1
+          if consecutive_pusher_errors >= 20
+            info("Too many consecutive pusher errors. Exiting.")
+            clean_exit(99)
+          end
         end
 
         if iteration == 2 || iteration == 100
@@ -96,13 +108,13 @@ module Scout
       }
     end
 
-    def clean_exit
+    def clean_exit(exit_code = 0)
       info("Streamer PID=#{$$} ending.")
       # remove the pid file before exiting
       streamer_pid_file=File.join(File.dirname(@history_file),"scout_streamer.pid")
       File.unlink(streamer_pid_file) if File.exist?(streamer_pid_file)
       # TODO: leave pusher channels and disconnect the pusher client
-      exit(0)
+      exit(exit_code)
     end
 
     def read_command_pipe
