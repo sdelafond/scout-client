@@ -101,9 +101,18 @@ module Scout
 
     def data_channel_auth
       return Proc.new {|socket_id, channel|
-        uri = URI(@pusher_auth_url)
+        uri = URI.parse(@pusher_auth_url)
         #http = Scout::build_http(auth_url) # We should use scout's http object so we go through any proxies
-        response = Net::HTTP.post_form(uri, 'id' => @chart_id, 'socket_id' => socket_id, 'channel_name' => channel.name, 'channel_user_data' => channel.user_data, 'response_auth_key_only' => true)
+        http = Net::HTTP.new(uri.host, uri.port)
+
+        if uri.scheme == "https"
+          http.use_ssl = true
+          http.verify_mode = uri.host == "staging.scoutapp.com" ? OpenSSL::SSL::VERIFY_NONE : OpenSSL::SSL::VERIFY_PEER
+        end
+
+        request = Net::HTTP::Post.new(uri.path)
+        request.set_form_data({'id' => @chart_id, 'socket_id' => socket_id, 'channel_name' => channel.name, 'channel_user_data' => channel.user_data, 'response_auth_key_only' => true})
+        response = http.request(request)
         response.body
       }
     end
