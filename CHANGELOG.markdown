@@ -1,3 +1,7 @@
+# 6.0.0
+
+* scoutd specific changes for scoutd, realtime, standalone/non-gem library. Not released as rubygem.
+
 # 5.9.7.1
 
 * write a bit more information about system metrics in the realtime log
