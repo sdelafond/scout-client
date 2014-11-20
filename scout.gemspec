@@ -25,4 +25,15 @@ END_DESC
   # s.add_development_dependency "rspec"
   s.add_runtime_dependency "elif"
   s.add_runtime_dependency "server_metrics",">= 1.2.5"
+
+  # Include git submodule files - borrowed from https://gist.githubusercontent.com/mattconnolly/5875987/raw/gem-with-git-submodules.gemspec
+  gem_dir = File.expand_path(File.dirname(__FILE__)) + "/"
+  `git submodule --quiet foreach pwd`.split($\).each do |submodule_path|
+    Dir.chdir(submodule_path) do
+      submodule_relative_path = submodule_path.sub gem_dir, ""
+      `git ls-files`.split($\).each do |filename|
+        s.files << "#{submodule_relative_path}/#{filename}"
+      end
+    end
+  end
 end

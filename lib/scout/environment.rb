@@ -1,5 +1,9 @@
 module Scout
   module Environment
+    def self.scoutd_child?
+      ENV['SCOUTD_PID'] == Process.ppid
+    end
+
     def self.bundler?
       ENV['BUNDLE_BIN_PATH'] && ENV['BUNDLE_GEMFILE']
     end

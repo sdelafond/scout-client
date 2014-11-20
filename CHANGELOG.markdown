@@ -1,3 +1,7 @@
+# 6.0.1
+
+* Ability to use as either rubygem or packaged with scoutd
+
 # 6.0.0
 
 * scoutd specific changes for scoutd, realtime, standalone/non-gem library. Not released as rubygem.

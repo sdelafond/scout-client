@@ -16,7 +16,7 @@ module Scout
       @history_file = history_file
       @history      = Hash.new
       @logger       = logger
-      @command_pipe      = IO.new(3, "r") # The read pipe of scoutd is passed in as fd 3
+      @command_pipe = command_pipe_setup
 
       @streaming_key = "private-#{streaming_key}" # This variable name should be changed to reflect the fact that it is a private channel
       @system_metric_collectors = system_metric_collectors
@@ -98,6 +98,15 @@ module Scout
     end
 
     private
+
+    def command_pipe_setup
+      if Environment.scoutd_child?
+        IO.new(3, "r") # The read pipe of scoutd is passed in as fd 3
+      else
+        pipe_read, pipe_write = IO.pipe
+        return pipe_read
+      end
+    end
 
     def data_channel_auth
       return Proc.new {|socket_id, channel|

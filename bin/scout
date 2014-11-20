@@ -3,9 +3,13 @@
 
 #$KCODE   = "u"  # -Ku
 
-# Customized for including libraries bundled in the scoutd package (system_metrics and elif)
-Dir.glob(File.join(File.dirname(__FILE__), *%w[.. .. *])).each do |dir|
-  $LOAD_PATH.unshift(File.join(dir,"lib"))
+# Put our own scout-client load path at the very beginning of Ruby's load path
+$LOAD_PATH.unshift(File.join(File.dirname(__FILE__), *%w[.. lib]))
+
+# Add the load path for required libraries whose dependencies might be already resolved by rubygems
+# Needed for running standalone. E.g. under scoutd
+Dir.glob(File.join(File.dirname(__FILE__), *%w[.. scoutd_vendor *])).each do |dir|
+  $LOAD_PATH << File.join(dir,"lib")
 end
 
 require "scout"
