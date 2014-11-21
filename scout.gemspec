@@ -28,10 +28,10 @@ END_DESC
 
   # Include git submodule files - borrowed from https://gist.githubusercontent.com/mattconnolly/5875987/raw/gem-with-git-submodules.gemspec
   gem_dir = File.expand_path(File.dirname(__FILE__)) + "/"
-  `git submodule --quiet foreach pwd`.split($\).each do |submodule_path|
+  `git submodule --quiet foreach pwd`.split("\n").each do |submodule_path|
     Dir.chdir(submodule_path) do
       submodule_relative_path = submodule_path.sub gem_dir, ""
-      `git ls-files`.split($\).each do |filename|
+      `git ls-files`.split("\n").each do |filename|
         s.files << "#{submodule_relative_path}/#{filename}"
       end
     end

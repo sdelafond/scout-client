@@ -39,18 +39,18 @@ module DaemonSpawn
 
     # Don't fork under scoutd
     if Scout::Environment.scoutd_child?
-      finalize_start
+      finalize_start(daemon, args)
     else
       fork do
         Process.setsid
         exit if fork
-        finalize_start
+        finalize_start(daemon, args)
       end
     end
     puts("#{daemon.app_name} started.") if $stdin.tty?
   end
 
-  def self.finalize_start
+  def self.finalize_start(daemon, args)
       open(daemon.pid_file, 'w') { |f| f << Process.pid }
       Dir.chdir daemon.working_dir
       old_umask = File.umask 0000
