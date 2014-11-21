@@ -6,6 +6,7 @@ require "elif"
 
 require "scout/version"
 
+require "scout/environment"
 require "scout/http"
 require "scout/command"
 require "scout/plugin"
@@ -17,5 +18,4 @@ require "scout/streamer"
 require "scout/daemon_spawn"
 require "scout/streamer_daemon"
 require "scout/data_file"
-require "scout/environment"
 

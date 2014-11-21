@@ -1,3 +1,7 @@
+# 6.0.2
+
+* Disable response callback after checkin if not scoutd
+
 # 6.0.1
 
 * Ability to use as either rubygem or packaged with scoutd

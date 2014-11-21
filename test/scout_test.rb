@@ -66,6 +66,9 @@ class ScoutTest < Test::Unit::TestCase
     @db_role=@roles_account.roles.find_by_name("db")
     @app_role=@roles_account.roles.find_by_name("app")
     @hostname = `hostname`.chomp
+
+    # scoutd info
+    @scoutd_version = "0.4.4"
   end
 
   def test_should_checkin_during_interactive_install
@@ -225,6 +228,13 @@ EOS
     @client.update_attribute(:version,nil)
     scout(@client.key)
     assert_equal Gem::Version.new(Scout::VERSION), @client.reload.version
+  end
+
+  def test_scoutd_version_is_set
+    assert_nil @client.last_ping
+    @client.update_attribute(:scoutd_version,nil)
+    via_scoutd(@client.key)
+    assert_equal @scoutd_version, @client.reload.scoutd_version
   end
 
   def test_client_hostname_is_set
@@ -686,7 +696,13 @@ myurl=http://foo.com?foo=bar
     Scout::Command.dispatch(args)
     File.read(AGENT_LOG) if File.exist?(AGENT_LOG)
   end
-  
+
+  # Simulates the environment of running scout under scoutd
+  def via_scoutd(args, *opts)
+    ENV['SCOUTD_VERSION'] = @scoutd_version
+    scout(args, opts)
+  end
+
   # Removes all files from the working directory. Needed as +at_exit+ isn't called when running the agent
   # in our test process via #scout.
   def clear_working_dir

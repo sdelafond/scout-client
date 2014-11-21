@@ -612,12 +612,17 @@ module Scout
       gzip =  Zlib::GzipWriter.new(io)
       gzip << @checkin.to_json
       gzip.close
+      response_callback = if Environment.scoutd_child?
+        lambda {|resp| puts Hash['success' => true, 'server_response' => resp].to_json }
+      else
+        nil
+      end
       post( urlify(:checkin),
             "Unable to check in with the server.",
             io.string,
             { "Content-Type"     => "application/json",
             "Content-Encoding" => "gzip" },
-            &lambda {|resp| puts Hash['success' => true, 'server_response' => resp].to_json }
+            &response_callback
           )
     rescue Exception
       error "Unable to check in with the server."

@@ -18,6 +18,7 @@ module Scout
 
     # Headers passed up with all API requests.
     HTTP_HEADERS = { "Client-Version"  => Scout::VERSION,
+                     "Scoutd-Version"  => Scout::Environment.scoutd_version,
                      "Accept-Encoding" => "gzip" }
 
 
