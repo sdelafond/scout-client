@@ -29,6 +29,7 @@ module Scout
         bullet "Hostname", @hostname
         bullet "History file", history
         bullet "Version", Scout::VERSION
+        bullet "scoutd Version", Scout::Environment.scoutd_version
         bullet "server_metrics", ServerMetrics::VERSION
 
         heading "Latest Log"
