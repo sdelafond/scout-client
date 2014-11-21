@@ -1,11 +1,11 @@
 module Scout
   module Environment
     def self.scoutd_child?
-      ENV['SCOUTD_VERSION']
+      ENV['SCOUTD_VERSION'] ? true : false
     end
 
     def self.scoutd_version
-      ENV['SCOUTD_VERSION']
+      ENV['SCOUTD_VERSION'] || ""
     end
 
     def self.bundler?
