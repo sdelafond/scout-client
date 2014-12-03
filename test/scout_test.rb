@@ -6,7 +6,8 @@
 $VERBOSE=nil
 require 'rubygems'
 
-gem "activerecord", "=3.1.12" # quick fix for now for the agent tests to continue to run when the rails 2.3 gem is present
+gem "activerecord", "=4.0.8" # quick fix for now for the agent tests to continue to run when the rails 2.3 gem is present
+require "rails"
 require "active_record"
 require "json"          # the data format
 require "erb"           # only for loading rails DB config for now
@@ -27,14 +28,20 @@ require 'lib/scout'
 require 'mocha/setup'
 
 
-SCOUT_PATH = '../scout'
+SCOUT_PATH = File.join(File.expand_path(File.dirname(__FILE__)),'..','..','scout')
 SINATRA_PATH = '../scout_sinatra'
 AGENT_DIR = File.expand_path( File.dirname(__FILE__) ) + '/working_dir/'
 PATH_TO_DATA_FILE = File.join AGENT_DIR, 'history.yml'
 AGENT_LOG = File.join AGENT_DIR, 'latest_run.log'
 PLUGINS_PROPERTIES = File.join AGENT_DIR, 'plugins.properties'
 PATH_TO_TEST_PLUGIN = File.expand_path( File.dirname(__FILE__) ) + '/plugins/temp_plugin.rb'
+ActiveRecord::Base.logger = ActiveSupport::Logger.new(File.join(File.dirname(__FILE__),'..','log', "test.log"))
 
+module Rails
+  def self.env; SCOUT_PATH;end
+  def self.root; SCOUT_PATH;end
+  def self.env; 'test';end
+end
 
 # This is a super simple shim to provide the two methods we use in delayed_job's API:
 # some_ar_instance.delay.some_method, and some_ar_class.delay.some_class_method
@@ -46,10 +53,11 @@ end
 
 class ScoutTest < Test::Unit::TestCase
   def setup
+    clear_rrds
+    clear_system_metric_rrds
     load_fixtures :accounts, :notification_groups, :environments, :clients, :plugins, :subscriptions, :plugin_metas, :roles, :plugin_templates
     clear_tables :plugin_activities, :ar_descriptors, :summaries, :clients_roles
     clear_working_dir
-    
 
     Client.update_all "last_checkin='#{5.days.ago.strftime('%Y-%m-%d %H:%M')}'"
     # ensures that fields are created
@@ -70,6 +78,31 @@ class ScoutTest < Test::Unit::TestCase
     # scoutd info
     @scoutd_version = "0.4.4"
   end
+
+  # Shared btw Rails + Sinatra
+  # Deletes all RRD files and clear RRDCached if configured
+  def clear_rrds
+    RRDB.instances.each do |r|
+      r=r.last if r.is_a?(Array) # can delete this after 10/11/2011 deployment
+      # change to RRDB.instances.each_pair do |name,r|
+
+      Dir.glob(File.join(Rails.root,'test/rrdbs/*.rrd')).each do |f|
+        File.unlink(f) 
+        if r.config[:daemon_address]
+          s=UNIXSocket.new(*r.config[:daemon_address].split(':').last)
+          s.puts "FORGET #{f}"
+          s.gets
+          s.close
+        end  
+      end # Dir.glob
+    end # RRDB.instances
+  end  
+  
+  # Deletes all RRD files for system metrics
+  def clear_system_metric_rrds
+      `rm -Rf #{Rails.root}/test/rrdbs/client_*`
+  end  
+
 
   def test_should_checkin_during_interactive_install
     Client.update_all "last_checkin=null"
@@ -759,7 +792,11 @@ myurl=http://foo.com?foo=bar
       ActiveRecord::Base.establish_connection(db_hash)
       # scout models and local models
       require SCOUT_PATH + '/lib/enum.rb'
+      require SCOUT_PATH + '/config/initializers/_server_role.rb'
+      require SCOUT_PATH + '/config/initializers/app_constants.rb'
+      require SCOUT_PATH + '/config/initializers/rrdtool.rb'
       require SINATRA_PATH + '/app/models/ar_models.rb'
+      require SINATRA_PATH + '/lib/delayed_job_shim.rb'
 
       ActiveRecord::Base.default_timezone = :utc
       
