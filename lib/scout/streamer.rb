@@ -1,10 +1,10 @@
-
 require 'rubygems'
 require 'json'
 require 'pusher-client'
 
 module Scout
   class PluginTimeoutError < RuntimeError; end
+  class PusherError < StandardError; end
   class Streamer
     MAX_DURATION = 60*30 # will shut down automatically after this many seconds
     SLEEP = 1
@@ -55,22 +55,11 @@ module Scout
 
         read_command_pipe
 
-        plugins = gather_plugin_reports(@selected_plugins)
+        pusher_error = false
 
-        system_metric_data = gather_system_metric_reports(@system_metric_collectors)
-
-        bundle={:hostname=>@hostname,
-                 :server_time=>Time.now.strftime("%I:%M:%S %p"),
-                 :server_unixtime => Time.now.to_i,
-                 :num_processes=>`ps -e | wc -l`.chomp.to_i,
-                 :plugins=>plugins, 
-                 :system_metrics => system_metric_data}
-
-        # stream the data via pusherapp
-        pusher_error = nil
         begin
-          @pusher_socket.send_channel_event(@streaming_key, 'client-server_data', bundle)
-        rescue Exception => e
+          report
+        rescue PusherError
           pusher_error = true
           error "Error pushing data: #{e.message}"
         end
@@ -95,6 +84,26 @@ module Scout
       end
 
       clean_exit
+    end
+
+    def report
+      plugins = gather_plugin_reports(@selected_plugins)
+
+      system_metric_data = gather_system_metric_reports(@system_metric_collectors)
+
+      bundle={:hostname=>@hostname,
+               :server_time=>Time.now.strftime("%I:%M:%S %p"),
+               :server_unixtime => Time.now.to_i,
+               :num_processes=>`ps -e | wc -l`.chomp.to_i,
+               :plugins=>plugins, 
+               :system_metrics => system_metric_data}
+
+      # stream the data via pusherapp
+      begin
+        @pusher_socket.send_channel_event(@streaming_key, 'client-server_data', bundle)
+      rescue Exception => e
+        raise PusherError
+      end
     end
 
     private
