@@ -180,16 +180,23 @@ module Scout
                              :id => plugin_hash['id'],
                              :class => plugin_hash['code_class'] }
 
-        begin
-          Timeout.timeout(30, PluginTimeoutError) do
-            data = plugin.run
-          end
-          plugin_response[:fields] = plugin.reports.inject { |memo, hash| memo.merge(hash) }
+        id_and_name = plugin_hash['id_and_name']
+        
+        if(failure_count(id_and_name) < 2)
+          begin
+            Timeout.timeout(3, PluginTimeoutError) do
+              data = plugin.run
+            end
+            plugin_response[:fields] = plugin.reports.inject { |memo, hash| memo.merge(hash) }
 
-          id_and_name = plugin_hash['id_and_name']
-          @history["last_runs"][id_and_name] = start_time
-          @history["memory"][id_and_name]    = data[:memory]
-        rescue Timeout::Error, PluginTimeoutError
+            @history["last_runs"][id_and_name] = start_time
+            @history["memory"][id_and_name]    = data[:memory]
+            mark_success(id_and_name)
+          rescue Timeout::Error, PluginTimeoutError # the plugin timed out on this run
+            plugin_response[:message] = "took too long to run"
+            mark_failure(id_and_name)
+          end
+        else # the plugin has timed out twice previously, don't continue to run
           plugin_response[:message] = "took too long to run"
         end
 
@@ -319,5 +326,18 @@ module Scout
       @@continue_streaming=v
     end
 
+    def mark_success(id)
+      @failing_plugins ||= Hash.new(0) # defaults values to 0
+      @failing_plugins[id] = 0 # resets value to zero so only consecutive errors are recorded
+    end
+
+    def mark_failure(id)
+      @failing_plugins ||= Hash.new(0) # defaults values to 0
+      @failing_plugins[id] += 1
+    end
+
+    def failure_count(id)
+      (@failing_plugins && @failing_plugins[id]).to_i # return zero if nil
+    end
   end
 end

@@ -10,6 +10,7 @@ $LOAD_PATH << File.expand_path( File.dirname(__FILE__) + '/..' )
 require 'lib/scout'
 require 'mocha/setup'
 require 'pusher-client'
+require 'timecop'
 
 class StreamerTest < Test::Unit::TestCase
   def setup
@@ -45,7 +46,21 @@ class StreamerTest < Test::Unit::TestCase
 
     Scout::Plugin.any_instance.stubs(:run).raises(Scout::PluginTimeoutError)
     @pusher_socket_stub.expects(:send_channel_event).with('private-streaming_key_stub', 'client-server_data', has_entry(:plugins, [{:fields=>{}, :name=>"test_plugin", :id=>123, :class=>"TestPlugin", :message=>"took too long to run", :duration=>0}])).returns(true)
-    streamer.report
+    Timecop.freeze do # so that duration consistently reports 0
+      streamer.report
+    end
+  end
+
+  def test_stops_running_a_plugin_if_it_times_out_twice
+    @plugin_ids << 123
+    streamer = Scout::Streamer.new(:history_file_stub, :streaming_key_stub, :chart_id_stub, :pusher_auth_id_stub, :pusher_app_id_stub, :pusher_key_stub, :pusher_user_id_stub, @plugin_ids, @system_metric_collectors, :hostname_stub, :http_proxy_stub)
+
+    # test that the plugin only runs twice
+    Scout::Plugin.any_instance.expects(:run).raises(Scout::PluginTimeoutError).twice
+    @pusher_socket_stub.expects(:send_channel_event).with('private-streaming_key_stub', 'client-server_data', has_entry(:plugins, [{:fields=>{}, :name=>"test_plugin", :id=>123, :class=>"TestPlugin", :message=>"took too long to run", :duration=>0}])).returns(true).times(3)
+    Timecop.freeze do # so that duration consistently reports 0
+      3.times { streamer.report }
+    end
   end
 
   private

@@ -15,4 +15,5 @@ group :test do
   gem 'pry'
   gem 'rake'
   gem 'pusher-client', git: 'https://github.com/dlanderson/pusher-ruby-client'
+  gem 'timecop'
 end
