@@ -175,25 +175,27 @@ module Scout
         plugin = get_instance_of(plugin_hash)
         start_time = Time.now
 
-        data = {}
+        plugin_response = { :fields => {},
+                             :name => plugin_hash['name'],
+                             :id => plugin_hash['id'],
+                             :class => plugin_hash['code_class'] }
+
         begin
           Timeout.timeout(30, PluginTimeoutError) do
             data = plugin.run
           end
+          plugin_response[:fields] = plugin.reports.inject { |memo, hash| memo.merge(hash) }
+
+          id_and_name = plugin_hash['id_and_name']
+          @history["last_runs"][id_and_name] = start_time
+          @history["memory"][id_and_name]    = data[:memory]
         rescue Timeout::Error, PluginTimeoutError
-          error "Plugin took too long to run."
+          plugin_response[:message] = "took too long to run"
         end
-        duration = ((Time.now-start_time) * 1000).to_i
 
-        id_and_name = plugin_hash['id_and_name']
-        @history["last_runs"][id_and_name] = start_time
-        @history["memory"][id_and_name]    = data[:memory]
+        plugin_response[:duration] = ((Time.now-start_time) * 1000).to_i
 
-        plugins << { :duration => duration,
-                     :fields => plugin.reports.inject{|memo,hash|memo.merge(hash)},
-                     :name => plugin_hash['name'],
-                     :id => plugin_hash['id'],
-                     :class => plugin_hash['code_class'] }
+        plugins << plugin_response
       end
       plugins
     end
