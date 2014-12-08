@@ -12,35 +12,39 @@ require 'mocha/setup'
 require 'pusher-client'
 
 class StreamerTest < Test::Unit::TestCase
-  def test_reports_system_metrics
-    stub_history_file
-    plugin_ids = []
-    system_metric_collectors = [:disk]
-
-    pusher_socket_stub = stub_pusher_socket(:streaming_key_stub)
-    PusherClient::Socket.stubs(:new).returns(pusher_socket_stub)
-    streamer = Scout::Streamer.new(:history_file_stub, :streaming_key_stub, :chart_id_stub, :pusher_auth_id_stub, :pusher_app_id_stub, :pusher_key_stub, :pusher_user_id_stub, plugin_ids, system_metric_collectors, :hostname_stub, :http_proxy_stub)
-
-    ServerMetrics::Disk.any_instance.stubs(:run).returns(:disk_metric_stub)
-    pusher_socket_stub.expects(:send_channel_event).with('private-streaming_key_stub', 'client-server_data', has_entry(:system_metrics, {:disk => :disk_metric_stub})).returns(true)
-    streamer.report
-  end
-
-  def test_returns_a_message_if_the_plugin_times_out
+  def setup
+    # in case the test needs a plugin to run
     stub_history_file({"old_plugins" => [{
       'id' => 123,
       'name' => 'test_plugin',
       'code' => "class TestPlugin < Scout::Plugin; def build_report; report(:value => 1); end; end;"
     }]})
-    plugin_ids = [123]
-    system_metric_collectors = []
 
-    pusher_socket_stub = stub_pusher_socket(:streaming_key_stub)
-    PusherClient::Socket.stubs(:new).returns(pusher_socket_stub)
-    streamer = Scout::Streamer.new(:history_file_stub, :streaming_key_stub, :chart_id_stub, :pusher_auth_id_stub, :pusher_app_id_stub, :pusher_key_stub, :pusher_user_id_stub, plugin_ids, system_metric_collectors, :hostname_stub, :http_proxy_stub)
+    # add the plugin id or system metric collector to these per the test's needs
+    @plugin_ids = []
+    @system_metric_collectors = []
+
+    # stub the pusher socket. create expectations on this stub
+    @pusher_socket_stub = stub_pusher_socket(:streaming_key_stub)
+    PusherClient::Socket.stubs(:new).returns(@pusher_socket_stub)
+  end
+
+  def test_reports_system_metrics
+    @system_metric_collectors << :disk
+
+    streamer = Scout::Streamer.new(:history_file_stub, :streaming_key_stub, :chart_id_stub, :pusher_auth_id_stub, :pusher_app_id_stub, :pusher_key_stub, :pusher_user_id_stub, @plugin_ids, @system_metric_collectors, :hostname_stub, :http_proxy_stub)
+
+    ServerMetrics::Disk.any_instance.stubs(:run).returns(:disk_metric_stub)
+    @pusher_socket_stub.expects(:send_channel_event).with('private-streaming_key_stub', 'client-server_data', has_entry(:system_metrics, {:disk => :disk_metric_stub})).returns(true)
+    streamer.report
+  end
+
+  def test_returns_a_message_if_the_plugin_times_out
+    @plugin_ids << 123
+    streamer = Scout::Streamer.new(:history_file_stub, :streaming_key_stub, :chart_id_stub, :pusher_auth_id_stub, :pusher_app_id_stub, :pusher_key_stub, :pusher_user_id_stub, @plugin_ids, @system_metric_collectors, :hostname_stub, :http_proxy_stub)
 
     Scout::Plugin.any_instance.stubs(:run).raises(Scout::PluginTimeoutError)
-    pusher_socket_stub.expects(:send_channel_event).with('private-streaming_key_stub', 'client-server_data', has_entry(:plugins, [{:fields=>{}, :name=>"test_plugin", :id=>123, :class=>"TestPlugin", :message=>"took too long to run", :duration=>0}])).returns(true)
+    @pusher_socket_stub.expects(:send_channel_event).with('private-streaming_key_stub', 'client-server_data', has_entry(:plugins, [{:fields=>{}, :name=>"test_plugin", :id=>123, :class=>"TestPlugin", :message=>"took too long to run", :duration=>0}])).returns(true)
     streamer.report
   end
 
