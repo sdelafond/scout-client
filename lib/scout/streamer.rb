@@ -1,10 +1,10 @@
-
 require 'rubygems'
 require 'json'
 require 'pusher-client'
 
 module Scout
   class PluginTimeoutError < RuntimeError; end
+  class PusherError < StandardError; end
   class Streamer
     MAX_DURATION = 60*30 # will shut down automatically after this many seconds
     SLEEP = 1
@@ -55,22 +55,11 @@ module Scout
 
         read_command_pipe
 
-        plugins = gather_plugin_reports(@selected_plugins)
+        pusher_error = false
 
-        system_metric_data = gather_system_metric_reports(@system_metric_collectors)
-
-        bundle={:hostname=>@hostname,
-                 :server_time=>Time.now.strftime("%I:%M:%S %p"),
-                 :server_unixtime => Time.now.to_i,
-                 :num_processes=>`ps -e | wc -l`.chomp.to_i,
-                 :plugins=>plugins, 
-                 :system_metrics => system_metric_data}
-
-        # stream the data via pusherapp
-        pusher_error = nil
         begin
-          @pusher_socket.send_channel_event(@streaming_key, 'client-server_data', bundle)
-        rescue Exception => e
+          report
+        rescue PusherError
           pusher_error = true
           error "Error pushing data: #{e.message}"
         end
@@ -95,6 +84,26 @@ module Scout
       end
 
       clean_exit
+    end
+
+    def report
+      plugins = gather_plugin_reports(@selected_plugins)
+
+      system_metric_data = gather_system_metric_reports(@system_metric_collectors)
+
+      bundle={:hostname=>@hostname,
+               :server_time=>Time.now.strftime("%I:%M:%S %p"),
+               :server_unixtime => Time.now.to_i,
+               :num_processes=>`ps -e | wc -l`.chomp.to_i,
+               :plugins=>plugins, 
+               :system_metrics => system_metric_data}
+
+      # stream the data via pusherapp
+      begin
+        @pusher_socket.send_channel_event(@streaming_key, 'client-server_data', bundle)
+      rescue Exception => e
+        raise PusherError
+      end
     end
 
     private
@@ -166,25 +175,34 @@ module Scout
         plugin = get_instance_of(plugin_hash)
         start_time = Time.now
 
-        data = {}
-        begin
-          Timeout.timeout(30, PluginTimeoutError) do
-            data = plugin.run
-          end
-        rescue Timeout::Error, PluginTimeoutError
-          error "Plugin took too long to run."
-        end
-        duration = ((Time.now-start_time) * 1000).to_i
+        plugin_response = { :fields => {},
+                             :name => plugin_hash['name'],
+                             :id => plugin_hash['id'],
+                             :class => plugin_hash['code_class'] }
 
         id_and_name = plugin_hash['id_and_name']
-        @history["last_runs"][id_and_name] = start_time
-        @history["memory"][id_and_name]    = data[:memory]
+        
+        if(failure_count(id_and_name) < 2)
+          begin
+            Timeout.timeout(3, PluginTimeoutError) do
+              data = plugin.run
+            end
+            plugin_response[:fields] = plugin.reports.inject { |memo, hash| memo.merge(hash) }
 
-        plugins << { :duration => duration,
-                     :fields => plugin.reports.inject{|memo,hash|memo.merge(hash)},
-                     :name => plugin_hash['name'],
-                     :id => plugin_hash['id'],
-                     :class => plugin_hash['code_class'] }
+            @history["last_runs"][id_and_name] = start_time
+            @history["memory"][id_and_name]    = data[:memory]
+            mark_success(id_and_name)
+          rescue Timeout::Error, PluginTimeoutError # the plugin timed out on this run
+            plugin_response[:message] = "took too long to run"
+            mark_failure(id_and_name)
+          end
+        else # the plugin has timed out twice previously, don't continue to run
+          plugin_response[:message] = "took too long to run"
+        end
+
+        plugin_response[:duration] = ((Time.now-start_time) * 1000).to_i
+
+        plugins << plugin_response
       end
       plugins
     end
@@ -308,5 +326,18 @@ module Scout
       @@continue_streaming=v
     end
 
+    def mark_success(id)
+      @failing_plugins ||= Hash.new(0) # defaults values to 0
+      @failing_plugins[id] = 0 # resets value to zero so only consecutive errors are recorded
+    end
+
+    def mark_failure(id)
+      @failing_plugins ||= Hash.new(0) # defaults values to 0
+      @failing_plugins[id] += 1
+    end
+
+    def failure_count(id)
+      (@failing_plugins && @failing_plugins[id]).to_i # return zero if nil
+    end
   end
 end
