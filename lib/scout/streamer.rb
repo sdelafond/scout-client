@@ -58,7 +58,7 @@ module Scout
         pusher_error = false
 
         begin
-          report
+          bundle = report
         rescue PusherError
           pusher_error = true
           error "Error pushing data: #{e.message}"
@@ -104,6 +104,8 @@ module Scout
       rescue Exception => e
         raise PusherError
       end
+
+      bundle
     end
 
     private
