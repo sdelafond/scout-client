@@ -62,6 +62,7 @@ module Scout
         rescue PusherError
           pusher_error = true
           error "Error pushing data: #{e.message}"
+          bundle = 'pusher error'
         end
 
         if pusher_error.nil?
