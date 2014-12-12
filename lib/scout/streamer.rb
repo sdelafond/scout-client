@@ -65,14 +65,14 @@ module Scout
           bundle = 'pusher error'
         end
 
-        if pusher_error.nil?
-          consecutive_pusher_errors = 0
-        else
+        if pusher_error
           consecutive_pusher_errors += 1
           if consecutive_pusher_errors >= 20
             info("Too many consecutive pusher errors. Exiting.")
             clean_exit(99)
           end
+        else
+          consecutive_pusher_errors = 0
         end
 
         if iteration == 2 || iteration == 100
