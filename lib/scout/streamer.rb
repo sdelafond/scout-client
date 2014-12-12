@@ -59,7 +59,7 @@ module Scout
 
         begin
           bundle = report
-        rescue PusherError
+        rescue PusherError => e
           pusher_error = true
           error "Error pushing data: #{e.message}"
           bundle = 'pusher error'
