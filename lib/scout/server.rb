@@ -107,7 +107,9 @@ module Scout
             temp_plugins=Array(body_as_hash["plugins"])
             # create a second array so the array we're iterating over doesn't mutate while we're iterating
             valid_plugins = temp_plugins.dup
-            temp_plugins.each_with_index do |plugin,i|
+            temp_plugins.each do |plugin|
+              # grab the index of this plugin in the valid_plugins array
+              valid_index = valid_plugins.index(plugin)
               signature=plugin['signature']
               id_and_name = "#{plugin['id']}-#{plugin['name']}".sub(/\A-/, "")
               if signature
@@ -118,12 +120,12 @@ module Scout
                     if !verify_public_key(account_public_key, decoded_signature, code)
                       info "#{id_and_name} signature verification failed for both the Scout and account public keys"
                       plugin['sig_error'] = "The code signature failed verification against both the Scout and account public key. Please ensure the public key installed at #{@account_public_key_path} was generated with the same private key used to sign the plugin."
-                      @plugins_with_signature_errors << valid_plugins.delete(plugin)
+                      @plugins_with_signature_errors << valid_plugins.delete_at(valid_index)
                     end
                   else
                     info "#{id_and_name} signature doesn't match!"
                     plugin['sig_error'] = "The code signature failed verification. Please place your account-specific public key at #{@account_public_key_path}."
-                    @plugins_with_signature_errors << valid_plugins.delete(plugin)
+                    @plugins_with_signature_errors << valid_plugins.delete_at(valid_index)
                   end
                 end
               # filename is set for local plugins. these don't have signatures.
@@ -132,7 +134,7 @@ module Scout
               else
                 info "#{id_and_name} has no signature!"
                 plugin['sig_error'] = "The code has no signature and cannot be verified."
-                @plugins_with_signature_errors << valid_plugins.delete(plugin)
+                @plugins_with_signature_errors << valid_plugins.delete_at(valid_index)
               end
             end
 
