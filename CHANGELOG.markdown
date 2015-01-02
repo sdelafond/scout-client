@@ -1,3 +1,7 @@
+# 5.9.8
+
+* Make validation of private plugins more robust
+
 # 5.9.7.1
 
 * write a bit more information about system metrics in the realtime log
