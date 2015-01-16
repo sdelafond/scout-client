@@ -66,6 +66,7 @@ module Scout
           response_handler[response] unless response_handler.nil?
         else
           error = "Server says: #{response['x-scout-msg']}" if response['x-scout-msg']
+          puts Hash['success' => false, 'server_response' => response['x-scout-msg']].to_json if Environment.scoutd_child?
           fatal error
           raise SystemExit.new(error)
       end
