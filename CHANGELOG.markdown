@@ -1,3 +1,11 @@
+# 6.0.4
+
+* Remove require 'rubygems' from lib/scout.rb
+
+# 6.0.3
+
+* Pass the server success/fail response to scoutd via json
+
 # 6.0.2
 
 * Disable response callback after checkin if not scoutd

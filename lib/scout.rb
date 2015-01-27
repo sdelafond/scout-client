@@ -1,6 +1,5 @@
 #!/usr/bin/env ruby -wKU
 
-require "rubygems" # only required during development, so server_metrics will load
 require "server_metrics"
 require "elif"
 
