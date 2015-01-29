@@ -13,7 +13,7 @@ module Scout
         @scout = Scout::Server.new(server, key, history, log, server_name, @http_proxy, @https_proxy, @roles, @hostname, @environment)
         @scout.load_history
         
-        unless $stdin.tty?
+        unless $stdin.tty? || @force # Dont's sleep if stdin is a tty or on a forced checkin
           log.info "Sleeping #{@scout.sleep_interval} sec" if log
           sleep @scout.sleep_interval
         end

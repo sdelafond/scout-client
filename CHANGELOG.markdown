@@ -1,3 +1,7 @@
+# 6.0.5
+
+* Don't sleep when tty or when forced
+
 # 6.0.4
 
 * Remove require 'rubygems' from lib/scout.rb
