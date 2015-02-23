@@ -189,12 +189,12 @@ module Scout
           begin
             Timeout.timeout(3, PluginTimeoutError) do
               data = plugin.run
-            end
-            plugin_response[:fields] = plugin.reports.inject { |memo, hash| memo.merge(hash) }
+              plugin_response[:fields] = plugin.reports.inject { |memo, hash| memo.merge(hash) }
 
-            @history["last_runs"][id_and_name] = start_time
-            @history["memory"][id_and_name]    = data[:memory]
-            mark_success(id_and_name)
+              @history["last_runs"][id_and_name] = start_time
+              @history["memory"][id_and_name]    = data[:memory]
+              mark_success(id_and_name)
+            end
           rescue Timeout::Error, PluginTimeoutError # the plugin timed out on this run
             plugin_response[:message] = "took too long to run"
             mark_failure(id_and_name)
