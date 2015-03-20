@@ -313,6 +313,7 @@ module Scout
       end
       take_snapshot if @directives['take_snapshots']
       get_server_metrics
+      get_scoutd_payload
       process_signature_errors
       store_account_public_key
       checkin
@@ -341,6 +342,36 @@ module Scout
         end
       end
       @checkin[:server_metrics] = res
+    end
+
+    # Fetches a json bundle from scoutd so we can include it in the checkin data
+    # We set @checkin.collectors from the scoutd json data
+    def get_scoutd_payload
+      return unless Environment.scoutd_child?
+      begin
+        url = Environment.scoutd_payload_url
+        res,data=nil,nil
+        Timeout::timeout(6) do
+          uri = URI.parse(url)
+          http = Net::HTTP.new(uri.host,uri.port)
+          http.open_timeout=4 # allow for some time to connect
+          http.read_timeout=4
+
+          res = http.get(uri.path)
+        end
+
+        if !res.is_a?(Net::HTTPSuccess)
+          raise "res=#{res.inspect}, res.body=#{res.body.inspect}" # will be immediately caught below
+        end
+
+        # Data should be a JSON hash with a 'collectors' key
+        data_hash = JSON.parse(res.body)
+        @checkin[:collectors] = data_hash['collectors']
+
+      rescue Timeout::Error, Exception => e
+        error "#{e.is_a?(Timeout::Error) ? 'Timout' : 'Error'} when fetching scoutd payload, url: #{url} - #{e}"
+        return
+      end
     end
 
     # Reports errors if there are any plugins with invalid signatures and sets a flag
@@ -533,7 +564,8 @@ module Scout
                    :config_path      => File.expand_path(File.dirname(@history_file)),
                    :server_name      => @server_name,
                    :options          => Array.new,
-                   :server_metrics   => Hash.new }
+                   :server_metrics   => Hash.new,
+                   :collectors       => Hash.new }
     end
 
     def show_checkin(printer = :p)

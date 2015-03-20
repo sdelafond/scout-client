@@ -8,6 +8,10 @@ module Scout
       ENV['SCOUTD_VERSION'] || ""
     end
 
+    def self.scoutd_payload_url
+      ENV['SCOUTD_PAYLOAD_URL']
+    end
+
     def self.bundler?
       ENV['BUNDLE_BIN_PATH'] && ENV['BUNDLE_GEMFILE']
     end
