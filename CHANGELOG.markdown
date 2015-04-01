@@ -1,3 +1,7 @@
+# 6.1.0
+
+* Fetch collector stats from scoutd endpoint
+
 # 6.0.5
 
 * Don't sleep when tty or when forced
