@@ -32,6 +32,9 @@ module Scout
         bullet "scoutd Version", Scout::Environment.scoutd_version
         bullet "server_metrics", ServerMetrics::VERSION
 
+        heading "Options Data"
+        text @options.inspect
+
         heading "Latest Log"
         contents=File.read(log_path) rescue "Log not found at #{log_path}"
         text contents
@@ -57,7 +60,7 @@ module Scout
         end
 
         heading "Agent directory Contents"
-        text `ls -la #{config_dir}`
+        text `ls -la #{File.join(config_dir, "")}` # Ensure the config_dir path ends in a path separator
 
         heading ""
 
