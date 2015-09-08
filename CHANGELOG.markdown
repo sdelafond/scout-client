@@ -1,3 +1,7 @@
+# 6.2.0
+
+* Fix realtime pipe for MRI >= 1.9.3
+
 # 6.1.0
 
 * Fetch collector stats from scoutd endpoint
