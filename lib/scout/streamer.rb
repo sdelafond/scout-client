@@ -113,11 +113,7 @@ module Scout
 
     def command_pipe_setup
       if Environment.scoutd_child?
-        begin
-          IO.new(3, "r") # The read pipe of scoutd is passed in as fd 3
-        rescue ArgumentError
-          IO.new(7, "r") # Ruby >= 1.9.3 reserves FD 3 through 6 for internal use
-        end
+          IO.new(0, "r") # The read pipe for scoutd is passed in as STDIN
       else
         pipe_read, pipe_write = IO.pipe
         return pipe_read
