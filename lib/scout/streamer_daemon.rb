@@ -67,5 +67,6 @@ module Scout
       else
         File.join(File.dirname(history_file),"scout_streamer.log")
       end
+    end
   end
 end
