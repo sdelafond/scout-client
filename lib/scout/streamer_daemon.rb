@@ -46,6 +46,14 @@ module Scout
       Scout::StreamerDaemon.stop(daemon_spawn_options, [])
     end
 
+    def self.streamer_log_path(history_file)
+      if Environment.scoutd_child?
+        File.join("var", "log", "scout", "scout_streamer.log")
+      else
+        File.join(File.dirname(history_file),"scout_streamer.log")
+      end
+    end
+
 
     # this method is called by DaemonSpawn's class start method.
     def start(streamer_args)
@@ -57,16 +65,6 @@ module Scout
     # this method is called by DaemonSpawn's class stop method.
     def stop
       Scout::Streamer.continue_streaming = false
-    end
-
-    private
-
-    def streamer_log_path(history_file)
-      if Environment.scoutd_child?
-        File.join("var", "log", "scout", "scout_streamer.log")
-      else
-        File.join(File.dirname(history_file),"scout_streamer.log")
-      end
     end
   end
 end
