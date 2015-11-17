@@ -1,3 +1,7 @@
+# 6.2.1
+
+* Change scout_streamer.log path to /var/log/scout if scoutd child.
+
 # 6.2.0
 
 * Fix realtime pipe for MRI >= 1.9.3
