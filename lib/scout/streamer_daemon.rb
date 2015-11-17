@@ -3,7 +3,7 @@ module Scout
 
     # this is the public-facing method for starting the streaming daemon
     def self.start_daemon(history_file, streamer_command, hostname, http_proxy)
-      streamer_log_file=streamer_log_path(history_file)
+      streamer_log_file=self.streamer_log_path(history_file)
       streamer_pid_file=File.join(File.dirname(history_file),"scout_streamer.pid")
 
       daemon_spawn_options = {:log_file => streamer_log_file,
@@ -35,7 +35,7 @@ module Scout
 
     # this is the public-facing method for stopping the streaming daemon
     def self.stop_daemon(history_file)
-      streamer_log_file=streamer_log_path(history_file)
+      streamer_log_file=self.streamer_log_path(history_file)
       streamer_pid_file=File.join(File.dirname(history_file),"scout_streamer.pid")
 
       daemon_spawn_options = {:log_file => streamer_log_file,
