@@ -63,7 +63,7 @@ module Scout
 
     def streamer_log_path(history_file)
       if Environment.scoutd_child?
-        File.join("var", "log", "scoutd", "scout_streamer.log")
+        File.join("var", "log", "scout", "scout_streamer.log")
       else
         File.join(File.dirname(history_file),"scout_streamer.log")
       end
