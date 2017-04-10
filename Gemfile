@@ -6,7 +6,6 @@ gemspec
 gem "server_metrics"
 
 group :test do
-  gem "newrelic_rpm"
   gem "activerecord", "3.1.12"
   gem "mysql2"
   gem "mocha", :require => false

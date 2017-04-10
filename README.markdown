@@ -56,4 +56,3 @@ Contact support@scoutapp.com with questions.
 
 Primary maintainers: Andre Lewis (andre@scoutapp.com) and Derek Haynes (derek@scoutapp.com)
 
-Many thanks to James Edward Gray II, Charles Brian Quinn, and Matt Todd for early work on the Scout agent!

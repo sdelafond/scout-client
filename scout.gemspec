@@ -5,7 +5,7 @@ require "scout/version"
 Gem::Specification.new do |s|
   s.name        = "scout"
   s.version     = Scout::VERSION
-  s.authors     = ["Andre Lewis", "Derek Haynes", "James Edward Gray II"]
+  s.authors     = ["Andre Lewis", "Derek Haynes"]
   s.email = "support@scoutapp.com"
   s.rubyforge_project = "scout"
   s.homepage = "http://scoutapp.com"
