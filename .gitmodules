@@ -1,9 +1,9 @@
 [submodule "vendor/pusher-ruby-client"]
 	path = vendor/pusher-ruby-client
-	url = https://github.com/dlanderson/pusher-ruby-client
+	url = https://github.com/scoutserver/pusher-ruby-client
 [submodule "vendor/websocket-ruby"]
 	path = vendor/websocket-ruby
-	url = https://github.com/dlanderson/websocket-ruby
+	url = https://github.com/scoutserver/websocket-ruby
 [submodule "scoutd_vendor/server_metrics"]
 	path = scoutd_vendor/server_metrics
-	url = https://github.com/scoutapp/server_metrics
+	url = https://github.com/scoutserver/server_metrics

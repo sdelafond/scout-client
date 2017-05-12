@@ -132,7 +132,7 @@ module Scout
 
         if uri.scheme == "https"
           http.use_ssl = true
-          http.verify_mode = uri.host == "staging.scoutapp.com" ? OpenSSL::SSL::VERIFY_NONE : OpenSSL::SSL::VERIFY_PEER
+          http.verify_mode = uri.host == "checkin.staging.server.pingdom.com" ? OpenSSL::SSL::VERIFY_NONE : OpenSSL::SSL::VERIFY_PEER
         end
 
         request = Net::HTTP::Post.new(uri.path)

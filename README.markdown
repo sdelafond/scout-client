@@ -1,6 +1,6 @@
-# Scout Server Monitoring Agent
+# Pingdom Server Monitoring Agent
 
-[Scout](https://scoutapp.com) is an easy-to-use hosted server monitoring service. The `scout` Ruby gem reports metrics to our service. The agent runs plugins, configured via the Scout web interface, to monitor a server. [View a list of available plugins on our website](https://scoutapp.com/plugin_urls) and [their source on Github](http://github.com/scoutapp/scout-plugins). 
+[Scout](https://server.pingdom.com) is an easy-to-use hosted server monitoring service. The `scout` Ruby gem reports metrics to our service. The agent runs plugins, configured via the Scout web interface, to monitor a server. [View a list of available plugins on our website](https://server.pingdom.com/plugin_urls) and [their source on Github](http://github.com/scoutserver/scout-plugins). 
 
 ## Installing
 
@@ -13,7 +13,7 @@ Scout requires Ruby, and is installed via Ruby Gems:
 
     $ scout KEY
 
-`KEY` is the identification key assigned by your account at http://scoutapp.com. When run from the command line, scout should print "success." If not, run in verbose mode to see what the problem is:
+`KEY` is the identification key assigned by your account at http://server.pingdom.com. When run from the command line, scout should print "success." If not, run in verbose mode to see what the problem is:
 
     $ scout KEY -v
 
@@ -35,7 +35,7 @@ After you've successfully run Scout from the command line, you should configure 
 
 The `scout troubleshoot` command provides useful troubleshooting information (log of the last run, environment information, and the list of gems).
 
-Extensive help is available via our website (http://scoutapp.com) and while installing the agent via the Scout web UI.
+Extensive help is available via our website (http://server.pingdom.com) and while installing the agent via the Scout web UI.
 
 
 ## Local plugin testing:
@@ -48,12 +48,12 @@ Extensive help is available via our website (http://scoutapp.com) and while inst
 
     key1=val1 key2=val2
 
-These options will be used for the plugin run. [Lean more about creating your own plugins](https://scoutapp.com/info/creating_a_plugin).
+These options will be used for the plugin run. [Lean more about creating your own plugins](https://server.pingdom.com/info/creating_a_plugin).
 
 ## Credits / Contact
 
-Contact support@scoutapp.com with questions.
+Contact support.server@pingdom.com with questions.
 
-Primary maintainers: Andre Lewis (andre@scoutapp.com) and Derek Haynes (derek@scoutapp.com)
+Primary maintainers: Andre Lewis (andre.lewis@pingdom.com)
 
 Many thanks to James Edward Gray II, Charles Brian Quinn, and Matt Todd for early work on the Scout agent!

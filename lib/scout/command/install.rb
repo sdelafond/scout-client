@@ -33,7 +33,7 @@ module Scout
 
           For help setting up Scout with crontab, please visit:
 
-            http://scoutapp.com/help#cron
+            http://server.pingdom.com/help#cron
 
           END_SUCCESS
         rescue SystemExit
@@ -43,7 +43,7 @@ module Scout
           Failed. 
           For more help, please visit:
 
-          http://scoutapp.com/help
+          http://server.pingdom.com/help
 
           END_ERROR
         end
