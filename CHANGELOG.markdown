@@ -1,3 +1,7 @@
+# 6.2.4
+
+* Update checkin URL
+
 # 6.2.3
 
 * Update URLs

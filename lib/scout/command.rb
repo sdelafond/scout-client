@@ -171,7 +171,7 @@ module Scout
 
     def initialize(options, args)
       @roles   = options[:roles]
-      @server  = options[:server]  || "https://checkin.server.pingdom.com/"
+      @server  = options[:server]  || "https://server.pingdom.com/"
       @history = options[:history] ||
                  File.join( File.join( (File.expand_path("~") rescue "/"),
                                        ".scout" ),
