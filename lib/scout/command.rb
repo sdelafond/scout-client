@@ -40,7 +40,7 @@ module Scout
         opts.separator "    #{program_name} [OPTIONS] install"
         opts.separator "  Troubleshoot:"
         opts.separator "    #{program_name} [OPTIONS] troubleshoot"
-        opts.separator "    ... print troubleshooting info, or post it back to scoutapp.com."
+        opts.separator "    ... print troubleshooting info, or post it back to server.pingdom.com."
         opts.separator "  Local plugin testing:"
         opts.separator "    #{program_name} [OPTIONS] test " +
                        "PATH_TO_PLUGIN [PLUGIN_OPTIONS]"
@@ -55,7 +55,7 @@ module Scout
         opts.separator "Specific Options:"
         opts.separator "--------------------------------------------------------------------------"
         opts.on( "-r", "--roles role1,role2", String,
-                 "Roles for this server. Roles are defined through scoutapp.com's web UI" ) do |roles|
+                 "Roles for this server. Roles are defined through server.pingdom.com's web UI" ) do |roles|
           options[:roles] = roles
         end
 
@@ -93,7 +93,7 @@ module Scout
           options[:hostname] = hostname
         end
 
-        opts.on( "-e", "--environment ENVIRONMENT", String, "Environment for this server. Environments are defined through scoutapp.com's web UI" ) do |environment|
+        opts.on( "-e", "--environment ENVIRONMENT", String, "Environment for this server. Environments are defined through server.pingdom.com's web UI" ) do |environment|
           options[:environment] = environment
         end
 
@@ -123,7 +123,7 @@ module Scout
         opts.separator " "
         opts.separator "Troubleshooting Options:"
         opts.separator "--------------------------------------------------------------------------"
-        opts.on( "--post", "For use with 'troubleshoot' - post the troubleshooting results back to scoutapp.com") do
+        opts.on( "--post", "For use with 'troubleshoot' - post the troubleshooting results back to server.pingdom.com") do
           options[:troubleshoot_post] = true
         end
         opts.on( "--no-history", "For use with 'troubleshoot' - don't include the history file contents.") do
@@ -171,7 +171,7 @@ module Scout
 
     def initialize(options, args)
       @roles   = options[:roles]
-      @server  = options[:server]  || "https://scoutapp.com/"
+      @server  = options[:server]  || "https://server.pingdom.com/"
       @history = options[:history] ||
                  File.join( File.join( (File.expand_path("~") rescue "/"),
                                        ".scout" ),
@@ -279,7 +279,7 @@ module Scout
           if pid == "unknown"
             log.warn "Could not create or read PID file.  "                +
                      "You may need to specify the path to the config directory.  " +
-                     "See:  http://scoutapp.com/help#data_file" if log
+                     "See:  http://server.pingdom.com/help#data_file" if log
           else
             log.warn "Process #{pid} was already running" if log
           end

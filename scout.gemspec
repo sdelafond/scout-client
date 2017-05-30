@@ -6,12 +6,12 @@ Gem::Specification.new do |s|
   s.name        = "scout"
   s.version     = Scout::VERSION
   s.authors     = ["Andre Lewis", "Derek Haynes"]
-  s.email = "support@scoutapp.com"
+  s.email = "support.server@pingdom.com"
   s.rubyforge_project = "scout"
-  s.homepage = "http://scoutapp.com"
+  s.homepage = "http://server.pingdom.com"
   s.summary = "Scout is an easy-to-use hosted server monitoring service. The scout Ruby gem reports metrics to our service. The agent runs plugins, configured via the Scout web interface, to monitor a server."
   s.description = <<END_DESC
-The scout gem reports metrics to scoutapp.com, an easy-to-use hosted server monitoring service.
+The scout gem reports metrics to server.pingdom.com, an easy-to-use hosted server monitoring service.
 END_DESC
 
   s.rubyforge_project = "scout"

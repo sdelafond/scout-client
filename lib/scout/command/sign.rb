@@ -5,7 +5,7 @@ require "openssl"
 module Scout
   class Command
     class Sign < Command
-      HELP_URL    = "https://scoutapp.com/info/creating_a_plugin#private_plugins"
+      HELP_URL    = "https://server-monitor.readme.io/docs/custom-plugins"
       
       def run
         url = @args.first
