@@ -1,3 +1,7 @@
+# 6.2.5
+
+* Passing options to ServerMetrics
+
 # 6.2.4
 
 * Update checkin URL
@@ -315,7 +319,7 @@
 
 # 5.0.3
 
-* fixed regression: Error when running `scout AGENT_KEY` without first running scout and manually entering the agent key 
+* fixed regression: Error when running `scout AGENT_KEY` without first running scout and manually entering the agent key
 
 # 5.0.2
 
