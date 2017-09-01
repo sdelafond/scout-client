@@ -12,13 +12,8 @@ module Scout
         # TODO: too much external logic of command doing things TO server. This should be moved into the server class.
         @scout = Scout::Server.new(server, key, history, log, server_name, @http_proxy, @https_proxy, @roles, @hostname, @environment, @options)
         @scout.load_history
-<<<<<<< HEAD
         
         unless $stdin.tty? || @force # Dont's sleep if stdin is a tty or on a forced checkin
-=======
-
-        unless $stdin.tty?
->>>>>>> 93a7971... Passing options to Scout::Server
           log.info "Sleeping #{@scout.sleep_interval} sec" if log
           sleep @scout.sleep_interval
         end
