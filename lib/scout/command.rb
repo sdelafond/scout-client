@@ -101,6 +101,10 @@ module Scout
           options[:ignored_devices] = ignored_devices
         end
 
+        opts.on("-j", "--json", "Print out metrics as JSON") do |json|
+          options[:json] = json
+        end
+
         opts.separator " "
         opts.separator "Common Options:"
         opts.separator "--------------------------------------------------------------------------"

@@ -637,6 +637,14 @@ module Scout
     end
 
     def checkin
+      if @options[:json]
+        printout_checkin_json
+      else
+        checkin_with_server
+      end
+    end
+
+    def checkin_with_server
       debug """
 #{PP.pp(@checkin, '')}
       """
@@ -659,6 +667,11 @@ module Scout
       debug $!.message
       debug $!.backtrace
     end
+
+    def printout_checkin_json
+      p @checkin.to_json
+    end
+
 
     # Called during initialization; loads the plugin_configs (local plugin configurations for passwords, etc)
     # if the file is there. Returns a hash like {"db.username"=>"secr3t"}
