@@ -669,7 +669,7 @@ module Scout
     end
 
     def printout_checkin_json
-      p @checkin.to_json
+      puts @checkin.to_json
     end
 
 
