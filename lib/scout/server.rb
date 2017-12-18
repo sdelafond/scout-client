@@ -629,6 +629,7 @@ module Scout
 
     def build_report(plugin_hash, fields)
       { :plugin_id  => plugin_hash['id'],
+        :plugin_name => plugin_hash['name'],
         :created_at => Time.now.utc.strftime("%Y-%m-%d %H:%M:%S"),
         :fields     => fields,
         :local_filename => plugin_hash['local_filename'], # this will be nil unless it's an ad-hoc plugin
