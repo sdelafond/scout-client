@@ -628,13 +628,18 @@ module Scout
     private
 
     def build_report(plugin_hash, fields)
+      plugin_name = parametrize_plugin_name(plugin_hash['name'])
       { :plugin_id  => plugin_hash['id'],
-        :plugin_name => plugin_hash['name'],
+        :plugin_name => plugin_name,
         :created_at => Time.now.utc.strftime("%Y-%m-%d %H:%M:%S"),
         :fields     => fields,
         :local_filename => plugin_hash['local_filename'], # this will be nil unless it's an ad-hoc plugin
         :origin => plugin_hash['origin'] # [LOCAL|OVERRIDE|nil]
       }
+    end
+
+    def parametrize_plugin_name(name)
+      name.gsub(/[\W+_]/, '-').downcase
     end
 
     def checkin
