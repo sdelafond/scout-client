@@ -12,7 +12,7 @@ module Scout
         # TODO: too much external logic of command doing things TO server. This should be moved into the server class.
         @scout = Scout::Server.new(server, key, history, log, server_name, @http_proxy, @https_proxy, @roles, @hostname, @environment, @options)
         @scout.load_history
-        
+
         unless $stdin.tty? || @force # Dont's sleep if stdin is a tty or on a forced checkin
           log.info "Sleeping #{@scout.sleep_interval} sec" if log
           sleep @scout.sleep_interval
@@ -50,7 +50,7 @@ module Scout
             create_pid_file_or_exit
             @scout.run_plugins_by_plan
             @scout.save_history
-            puts "Successfully reported to #{server}" if $stdin.tty?
+            puts "Successfully reported to #{server}" if $stdin.tty? && !@options[:json]
           rescue SystemExit => e
             puts "Failure. Run with '-v -ldebug' for more information" if $stdin.tty?
             raise e
