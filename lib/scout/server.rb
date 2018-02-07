@@ -161,7 +161,7 @@ module Scout
       local_plugin_paths = Dir.glob(File.join(path,"[a-zA-Z]*.rb"))
       local_plugin_paths.map do |plugin_path|
         name    = File.basename(plugin_path)
-        options = fetch_plugin_options(plugin_path)
+        options = fetch_plugin_options(name, plugin_path)
         begin
           plugin = {
             'name'            => name,
@@ -184,7 +184,7 @@ module Scout
       end.compact
     end
 
-    def fetch_plugin_options(plugin_path)
+    def fetch_plugin_options(name, plugin_path)
       return read_plugin_options_from_file(plugin_path) if @options[:local]
 
       if directives = @plugin_plan.find { |plugin| plugin['filename'] == name }

@@ -105,7 +105,7 @@ module Scout
           options[:json] = json
         end
 
-        opts.on("-l", "--local PATH", String, "Load .rb plugin files from this local path instead of from server.pingdom.com") do |local|
+        opts.on("--local PATH", String, "Load .rb plugin files from this local path instead of from server.pingdom.com") do |local|
           options[:local] = local
         end
 
