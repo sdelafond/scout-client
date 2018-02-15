@@ -24,7 +24,7 @@ END_DESC
   # specify any dependencies here; for example:
   # s.add_development_dependency "rspec"
   s.add_runtime_dependency "elif"
-  s.add_runtime_dependency "server_metrics",">= 1.2.5"
+  s.add_runtime_dependency "server_metrics",">= 1.2.18"
 
   # Include git submodule files - borrowed from https://gist.githubusercontent.com/mattconnolly/5875987/raw/gem-with-git-submodules.gemspec
   gem_dir = File.expand_path(File.dirname(__FILE__)) + "/"
