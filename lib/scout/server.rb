@@ -150,7 +150,7 @@ module Scout
       else
         info "Plan not modified."
         @plugin_plan = Array(@history["old_plugins"])
-        @plugin_plan += get_local_plugins
+        @plugin_plan += fetch_local_plugins
         @directives = @history["directives"] || Hash.new
 
       end
