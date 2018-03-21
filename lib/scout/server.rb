@@ -160,12 +160,13 @@ module Scout
     def fetch_local_plugins(path = @local_plugin_path)
       local_plugin_paths = Dir.glob(File.join(path,"[a-zA-Z]*.rb"))
       local_plugin_paths.map do |plugin_path|
-        name    = File.basename(plugin_path)
-        options = fetch_plugin_options(name, plugin_path)
+        file_name    = File.basename(plugin_path)
+        name         = file_name.gsub('.rb', '')
+        options      = fetch_plugin_options(file_name, plugin_path)
         begin
           plugin = {
             'name'            => name,
-            'local_filename'  => name,
+            'local_filename'  => file_name,
             'origin'          => 'LOCAL',
             'code'            => File.read(plugin_path),
             'interval'        => 0,
