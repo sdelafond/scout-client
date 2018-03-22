@@ -422,12 +422,15 @@ module Scout
     # The plugin argument is a hash with keys: id, name, code, timeout, options, signature.
     def process_plugin(plugin)
       info "Processing the '#{plugin['name']}' plugin:"
+
       id_and_name = "#{plugin['id']}-#{plugin['name']}".sub(/\A-/, "")
+      id_and_name_from_options = "#{plugin["options"][:id]}-#{plugin["options"][:name]}".sub(/\A-/, "")
       plugin_id = plugin['id']
       last_run    = @history["last_runs"][id_and_name] ||
                     @history["last_runs"][plugin['name']]
       memory      = @history["memory"][id_and_name] ||
-                    @history["memory"][plugin['name']]
+                    @history["memory"][plugin['name']] ||
+                    @history["memory"][id_and_name_from_options]
       run_time    = Time.now
       delta       = last_run.nil? ? nil : run_time -
                                           (last_run + plugin['interval'] * 60)
