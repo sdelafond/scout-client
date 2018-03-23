@@ -424,13 +424,17 @@ module Scout
       info "Processing the '#{plugin['name']}' plugin:"
 
       id_and_name = "#{plugin['id']}-#{plugin['name']}".sub(/\A-/, "")
-      id_and_name_from_options = "#{plugin["options"][:id]}-#{plugin["options"][:name]}".sub(/\A-/, "")
+
       plugin_id = plugin['id']
       last_run    = @history["last_runs"][id_and_name] ||
                     @history["last_runs"][plugin['name']]
       memory      = @history["memory"][id_and_name] ||
-                    @history["memory"][plugin['name']] ||
-                    @history["memory"][id_and_name_from_options]
+                    @history["memory"][plugin['name']]
+      if !memory && plugin["options"]
+        options = plugin["options"]
+        id_and_name = "#{options[:id]}-#{options[:name]}".sub(/\A-/, "")
+        memory =  @history["memory"][id_and_name]
+      end
       run_time    = Time.now
       delta       = last_run.nil? ? nil : run_time -
                                           (last_run + plugin['interval'] * 60)
