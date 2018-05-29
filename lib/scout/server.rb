@@ -430,7 +430,7 @@ module Scout
                     @history["last_runs"][plugin['name']]
       memory      = @history["memory"][id_and_name] ||
                     @history["memory"][plugin['name']]
-      if !memory && plugin["options"]
+      if !memory && plugin["options"] && plugin["options"][:id]
         options = plugin["options"]
         id_and_name = "#{options[:id]}-#{options[:name]}".sub(/\A-/, "")
         memory =  @history["memory"][id_and_name]
