@@ -1,3 +1,7 @@
+# 6.4.10
+
+* Fix proxy authentication
+
 # 6.2.5
 
 * Passing options to Scout::Server, server_metrics 1.2.16, ignored devices option for usage in server_metrics
