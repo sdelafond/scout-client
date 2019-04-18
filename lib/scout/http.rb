@@ -11,7 +11,7 @@ module Scout
     # Net::HTTP::Proxy returns a regular Net::HTTP class if the first argument (host) is nil
     def build_http(uri)
       proxy_uri = URI.parse(uri.is_a?(URI::HTTPS) ? @https_proxy : @http_proxy)
-      http = Net::HTTP::Proxy(proxy_uri.host, proxy_uri.port, proxy_uri.user, proxy_uri.port).new(uri.host, uri.port)
+      http = Net::HTTP::Proxy(proxy_uri.host, proxy_uri.port, proxy_uri.user, proxy_uri.password).new(uri.host, uri.port)
 
       if uri.is_a?(URI::HTTPS)
         http.use_ssl = true
