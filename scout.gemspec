@@ -9,9 +9,9 @@ Gem::Specification.new do |s|
   s.email = "support.server@pingdom.com"
   s.rubyforge_project = "scout"
   s.homepage = "http://server.pingdom.com"
-  s.summary = "Scout is an easy-to-use hosted server monitoring service. The scout Ruby gem reports metrics to our service. The agent runs plugins, configured via the Scout web interface, to monitor a server."
+  s.summary = "Pingdom Server Monitor is an easy-to-use hosted server monitoring service. The scout Ruby gem reports metrics to our service. The agent runs plugins, configured via the Pingdom Server Monitor web interface, to monitor a server."
   s.description = <<END_DESC
-The scout gem reports metrics to server.pingdom.com, an easy-to-use hosted server monitoring service.
+The scout gem reports metrics to Pingdom Server Monitor (server.pingdom.com), an easy-to-use hosted server monitoring service.
 END_DESC
 
   s.files         = `git ls-files`.split("\n")
